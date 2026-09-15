@@ -1,0 +1,46 @@
+{
+  // Ready-made run configurations for the OTMS client.
+  //
+  // The API base URL is a build-time setting: with no flag the app guesses
+  // (web = the origin it was served from, Android emulator = 10.0.2.2, desktop
+  // and iOS simulator = localhost). The configurations below set it explicitly
+  // where the guess cannot know the answer.
+  //
+  // Adjust OTMS_API_BASE to your own machine's address where noted.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Web during development: the Flutter dev server runs on a random port,
+      // so the app must be told where the PHP backend actually lives.
+      "name": "OTMS - Chrome (XAMPP on localhost)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "otms_flutter",
+      "program": "lib/main.dart",
+      "args": [
+        "-d",
+        "chrome",
+        "--dart-define=OTMS_API_BASE=http://localhost/OTMS1/backend"
+      ]
+    },
+    {
+      // 10.0.2.2 is the Android emulator's alias for the host machine.
+      "name": "OTMS - Android emulator",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "otms_flutter",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=OTMS_API_BASE=http://10.0.2.2/OTMS1/backend"]
+    },
+    {
+      // A real phone on Wi-Fi: replace the IP with the one `ipconfig` reports
+      // for your machine, and make sure Apache is allowed through the firewall.
+      "name": "OTMS - physical device (edit the IP)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "otms_flutter",
+      "program": "lib/main.dart",
+      "args": ["--dart-define=OTMS_API_BASE=http://192.168.1.15/OTMS1/backend"]
+    }
+  ]
+}

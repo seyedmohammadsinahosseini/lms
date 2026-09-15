@@ -1,16 +1,55 @@
 # otms_flutter
 
-A new Flutter project.
+The Flutter client for **OTMS** (Online Teaching & Management System) — a class
+management app for teachers and students. Runs on Android and the web.
 
-## Getting Started
+Project-wide setup, backend instructions and the API test scripts live in the
+[repository README](../README.md).
 
-This project is a starting point for a Flutter application.
+## Quick start
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter run -d chrome        # web
+flutter run                  # attached device or emulator
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+The app needs the PHP backend (`../backend`) running. The API base URL is
+resolved automatically:
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+* **web** — the origin the app was served from
+* **Android emulator** — `http://10.0.2.2/OTMS1/backend` (the host machine)
+* **anything else** — `http://localhost/OTMS1/backend`
+
+Point it somewhere else explicitly with:
+
+```bash
+flutter run --dart-define=OTMS_API_BASE=http://192.168.1.15/OTMS1/backend
+```
+
+See `lib/core/config/env.dart` for the resolution rules.
+
+## Checks
+
+```bash
+flutter analyze
+flutter test
+```
+
+## Layout
+
+```
+lib/
+├── app.dart              Root widget, provider tree, auth gate
+├── main.dart             Bootstrap only
+├── core/config/env.dart  API base URL configuration
+├── models/               Plain data models mirroring the API JSON
+├── services/             ApiClient — the single HTTP layer
+├── state/                AuthProvider, ThemeProvider
+├── theme/                Light and dark themes
+└── screens/
+    ├── auth/             Login and registration
+    ├── shared/           Sidebar, common widgets
+    ├── student/          Student screens and tabs
+    └── teacher/          Teacher screens and tabs
+```
