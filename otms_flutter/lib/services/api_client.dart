@@ -61,17 +61,34 @@ class ApiClient {
   String fileUrl(String relativePath) => '$base/$relativePath';
 
   Future<void> loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString(_tokenKey);
+    final prefs = await _prefs();
+    _token = prefs?.getString(_tokenKey);
+  }
+
+  /// Local storage can be unavailable: private browsing, storage blocked by the
+  /// browser, or the app running inside a sandboxed iframe. Losing the
+  /// "remember me" convenience must not take the whole app down, so every
+  /// storage failure degrades to an in-memory session.
+  Future<SharedPreferences?> _prefs() async {
+    try {
+      return await SharedPreferences.getInstance();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _setToken(String? value) async {
     _token = value;
-    final prefs = await SharedPreferences.getInstance();
-    if (value == null) {
-      await prefs.remove(_tokenKey);
-    } else {
-      await prefs.setString(_tokenKey, value);
+    final prefs = await _prefs();
+    if (prefs == null) return;
+    try {
+      if (value == null) {
+        await prefs.remove(_tokenKey);
+      } else {
+        await prefs.setString(_tokenKey, value);
+      }
+    } catch (_) {
+      // Keep the in-memory token; only persistence is lost.
     }
   }
 
