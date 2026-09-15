@@ -1,0 +1,14 @@
+<!-- Runs the app on a physical phone over the USB cable, with no Wi-Fi and no
+     firewall change. Requires this to be run once per connection:
+
+       adb reverse tcp:8080 tcp:80
+
+     which forwards the phone's localhost:8080 to port 80 on this computer, where
+     Apache serves /OTMS1/backend. Redo it after unplugging the cable. -->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="OTMS - phone over USB (adb reverse)" type="FlutterRunConfigurationType" factoryName="Flutter">
+    <option name="filePath" value="$PROJECT_DIR$/lib/main.dart" />
+    <option name="additionalArgs" value="--dart-define=OTMS_API_BASE=http://localhost:8080/OTMS1/backend" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,0 +1,12 @@
+<!-- Runs the app on a physical phone over Wi-Fi.
+     Edit the IP in "Additional run args" to match your machine (run `ipconfig`
+     and read the IPv4 Address of your Wi-Fi adapter), then pick your phone in
+     the device dropdown and press Run.
+     The API must be reachable from the phone: see docs/ for the firewall step. -->
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="OTMS - phone over Wi-Fi (edit the IP)" type="FlutterRunConfigurationType" factoryName="Flutter">
+    <option name="filePath" value="$PROJECT_DIR$/lib/main.dart" />
+    <option name="additionalArgs" value="--dart-define=OTMS_API_BASE=http://192.168.1.15/OTMS1/backend" />
+    <method v="2" />
+  </configuration>
+</component>
