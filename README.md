@@ -92,6 +92,16 @@ cmd /c "C:\xampp\mysql\bin\mysql.exe -u root < C:\xampp\htdocs\OTMS1\backend\sch
 Or skip the command line entirely: open <http://localhost/phpmyadmin>, choose
 **Import**, select `backend/schema.sql` and press **Go**.
 
+Then optionally load the demo data, so every screen has real content instead of
+empty states — five classes, seven students, lessons and materials, assessments
+with graded work, homework waiting to be marked and Q&A threads:
+
+```bat
+C:\xampp\mysql\bin\mysql.exe -u root otms < C:\xampp\htdocs\OTMS1\tools\demo_seed.sql
+```
+
+To start over with a clean slate, re-import `backend/schema.sql` on its own.
+
 ### 4. Check the backend is alive
 
 Open this in your browser:
@@ -144,6 +154,7 @@ Any PHP 8 with `pdo_mysql` will do. From the repository root:
 # 1. Create the database (uses the OTMS_DB_* variables, defaults: root, no password)
 php -r 'require "backend/config.php"; db();' || true
 mysql -u root < backend/schema.sql
+mysql -u root otms < tools/demo_seed.sql     # optional sample content
 
 # 2. Serve the project
 php -S 127.0.0.1:8080 -t .
@@ -177,6 +188,30 @@ Apache on **private** networks the first time it asks).
 
 If you use VS Code, [`.vscode/launch.json`](.vscode/launch.json) already contains
 these three configurations, so you can just press <kbd>F5</kbd>.
+
+### Previewing in a browser without a device
+
+To click through the app on a computer — or to open it on a phone's browser —
+build the web version once and serve it from the same origin as the API. Nothing
+needs configuring then: no CORS origin, no `--dart-define`.
+
+```bash
+cd otms_flutter
+flutter build web --debug          # --release for a smaller, faster build
+
+mkdir -p ../preview/OTMS1
+cp -r build/web/. ../preview/
+ln -s ../../backend ../preview/OTMS1/backend   # Windows: mklink /D, or copy it
+
+cd .. && php -S 0.0.0.0:8080 -t preview
+```
+
+Open `http://localhost:8080`. The app is served from the root, resolves its API
+at `<origin>/OTMS1/backend`, and the same URL works from a phone on the same
+network as `http://<your-ip>:8080`.
+
+`--debug` compiles in a couple of minutes. `--release` produces a much smaller
+download but takes considerably longer, which matters on a low-memory machine.
 
 ---
 

@@ -11,6 +11,16 @@
 //
 //   Apache:  SetEnv OTMS_ALLOWED_ORIGINS "https://otms.example.com,http://192.168.1.15:8080"
 //   CLI:     OTMS_ALLOWED_ORIGINS="https://otms.example.com" php -S 127.0.0.1:8080
+//
+// Setting OTMS_CORS_REFLECT_ANY=1 reflects *any* origin instead, which is what
+// a hosted demo or a sandboxed preview iframe needs (those send `Origin: null`
+// or an origin that is not known in advance). It disables the protection this
+// file provides, so never set it on a deployment that handles real data: any
+// website could then drive the API from a visitor's browser.
+
+function cors_reflects_any_origin(): bool {
+    return getenv('OTMS_CORS_REFLECT_ANY') === '1';
+}
 
 function cors_origin_is_allowed(string $origin): bool {
     // Local development on any port: `flutter run -d chrome` serves the app
@@ -33,8 +43,13 @@ function cors_origin_is_allowed(string $origin): bool {
 }
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$reflectAny = cors_reflects_any_origin();
 
-if ($origin !== '' && cors_origin_is_allowed($origin)) {
+if ($origin !== '' && ($reflectAny || cors_origin_is_allowed($origin))) {
+    if ($reflectAny && !cors_origin_is_allowed($origin)) {
+        error_log('OTMS CORS: reflecting untrusted origin ' . $origin
+            . ' because OTMS_CORS_REFLECT_ANY=1 -- demo mode only');
+    }
     header("Access-Control-Allow-Origin: $origin");
     header('Vary: Origin');
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');

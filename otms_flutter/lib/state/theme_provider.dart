@@ -10,16 +10,22 @@ class ThemeProvider extends ChangeNotifier {
   bool get isDark => _mode == ThemeMode.dark;
 
   Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    switch (prefs.getString(_key)) {
-      case 'light':
-        _mode = ThemeMode.light;
-        break;
-      case 'dark':
-        _mode = ThemeMode.dark;
-        break;
-      default:
-        _mode = ThemeMode.system;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      switch (prefs.getString(_key)) {
+        case 'light':
+          _mode = ThemeMode.light;
+          break;
+        case 'dark':
+          _mode = ThemeMode.dark;
+          break;
+        default:
+          _mode = ThemeMode.system;
+      }
+    } catch (_) {
+      // Storage unavailable (private browsing, sandboxed iframe, blocked
+      // third-party storage): keep the default and carry on.
+      _mode = ThemeMode.system;
     }
     notifyListeners();
   }
@@ -27,7 +33,11 @@ class ThemeProvider extends ChangeNotifier {
   Future<void> toggle() async {
     _mode = isDark ? ThemeMode.light : ThemeMode.dark;
     notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_key, isDark ? 'dark' : 'light');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_key, isDark ? 'dark' : 'light');
+    } catch (_) {
+      // Preference is not persisted; the session still switches theme.
+    }
   }
 }
