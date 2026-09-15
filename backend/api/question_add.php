@@ -65,7 +65,9 @@ if ($type === 'multiple_choice') {
 }
 // essay -> no options
 
-$pos = (int)db()->query('SELECT COALESCE(MAX(position)+1,0) FROM questions WHERE assessment_id = ' . $assessmentId)->fetchColumn();
+$posStmt = db()->prepare('SELECT COALESCE(MAX(position)+1,0) FROM questions WHERE assessment_id = ?');
+$posStmt->execute([$assessmentId]);
+$pos = (int)$posStmt->fetchColumn();
 
 db()->beginTransaction();
 try {

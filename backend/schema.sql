@@ -7,7 +7,7 @@ USE otms;
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS qa_replies, qa_threads, submissions, homework,
   answers, attempts, options, questions, assessments, contents, lessons,
-  enrollments, classes, teacher_codes, sessions, users;
+  enrollments, classes, teacher_codes, sessions, login_attempts, users;
 SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE users (
@@ -25,6 +25,17 @@ CREATE TABLE sessions (
   expires_at DATETIME NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Failed sign-in attempts, used to throttle password guessing (see
+-- helpers.php: login_attempts_exceeded / record_login_failure).
+-- Rows older than a few minutes are pruned opportunistically on failure.
+CREATE TABLE login_attempts (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  email VARCHAR(160) NOT NULL,
+  ip VARCHAR(45) NOT NULL,
+  attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_ip_time (email, ip, attempted_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE teacher_codes (

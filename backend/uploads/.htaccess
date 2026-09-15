@@ -1,0 +1,42 @@
+# Untrusted user uploads live here.
+#
+# The application already allowlists file extensions (see save_upload() in
+# ../helpers.php), but a web server that is misconfigured -- or an extension
+# that was forgotten -- must not be able to turn an upload into code execution.
+# This file is the second line of defence for the Apache deployments (XAMPP,
+# LAMP) the project targets.
+#
+# NOTE: .htaccess is Apache-only. On nginx add the equivalent to the server
+# block, e.g.:
+#   location ^~ /OTMS1/backend/uploads/ {
+#       location ~ \.(php|phtml|phar|html|svg)$ { deny all; }
+#       autoindex off;
+#   }
+
+# Never list the directory: a filename is not a secret, but it should not be
+# handed out either.
+Options -Indexes
+
+# mod_php: switch the handler off for this directory.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>
+
+# Belt and braces for setups where the flag above does not apply (PHP-FPM/CGI,
+# or a handler that ignores it): refuse to serve anything executable or
+# script-capable.
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|pl|py|rb|cgi|sh|bash|asp|aspx|jsp|shtml|htm|html|xhtml|svg|xml)$">
+    Require all denied
+</FilesMatch>
+
+# Keep the browser from second-guessing our Content-Type for stored files.
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set Content-Security-Policy "default-src 'none'; sandbox"
+</IfModule>
