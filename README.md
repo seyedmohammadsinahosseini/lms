@@ -25,6 +25,7 @@ The repository contains both halves of the product:
 - [Quick start on Windows with XAMPP](#quick-start-on-windows-with-xampp)
 - [Quick start without XAMPP](#quick-start-without-xampp)
 - [Running the app](#running-the-app)
+- [Previewing in a browser without a device](#previewing-in-a-browser-without-a-device)
 - [Configuration](#configuration)
 - [Tests](#tests)
 - [Troubleshooting](#troubleshooting)
@@ -191,29 +192,61 @@ these three configurations, so you can just press <kbd>F5</kbd>.
 
 ### Previewing in a browser without a device
 
-To click through the app on a computer — or to open it on a phone's browser —
-build the web version once and serve it from the same origin as the API. Nothing
-needs configuring then: no CORS origin, no `--dart-define`.
+To click through the app on a computer — or open it on a phone's browser — build
+the web version and put it under `htdocs` next to `backend/`. Serving both from
+one origin means no CORS origin to configure and no `--dart-define`: the app
+resolves its API from the address it was served from.
+
+**Windows (Command Prompt), with Apache already running:**
+
+```bat
+cd C:\xampp\htdocs\OTMS1\otms_flutter
+flutter build web --debug --base-href=/OTMS1/preview/
+
+mkdir C:\xampp\htdocs\OTMS1\preview
+xcopy /E /I /Y build\web C:\xampp\htdocs\OTMS1\preview
+```
+
+Then open `http://localhost/OTMS1/preview/`. No `php -S` needed — Apache serves it:
+
+```
+C:\xampp\htdocs\OTMS1\
+├── backend\        the API (already there)
+├── otms_flutter\   the app source (already there)
+└── preview\        the build output (the only thing you add)
+```
+
+`--base-href` is required: served from a subpath, the app's assets
+(`main.dart.js`, `canvaskit/`) must be requested under `/OTMS1/preview/`, or the
+browser 404s them and you get a blank page.
+
+**Linux / macOS** — the same idea, into whatever your document root is:
 
 ```bash
 cd otms_flutter
-flutter build web --debug          # --release for a smaller, faster build
-
-mkdir -p ../preview/OTMS1
-cp -r build/web/. ../preview/
-ln -s ../../backend ../preview/OTMS1/backend   # Windows: mklink /D, or copy it
-
-cd .. && php -S 0.0.0.0:8080 -t preview
+flutter build web --debug --base-href=/OTMS1/preview/
+mkdir -p /var/www/html/OTMS1/preview
+cp -r build/web/. /var/www/html/OTMS1/preview/
 ```
 
-Open `http://localhost:8080`. The app is served from the root, resolves its API
-at `<origin>/OTMS1/backend`, and the same URL works from a phone on the same
-network as `http://<your-ip>:8080`.
+#### Why not the symlink approach
 
-`--debug` compiles in a couple of minutes. `--release` produces a much smaller
-download but takes considerably longer, which matters on a low-memory machine.
+The older instructions here used `ln -s ../../backend ../preview/OTMS1/backend`
+and served the build from a throwaway directory. That works on Linux/macOS, but
+on Windows `ln` does not exist, and its replacement `mklink` is a **cmd builtin**
+(so it fails from PowerShell with `The term 'mklink' is not recognized`) that
+also needs Administrator rights for a directory link. The `--base-href` route
+above needs neither.
 
----
+Windows equivalents if you do want the symlink:
+
+| POSIX | Windows |
+| --- | --- |
+| `ln -s target link` | `mklink /D link target` (cmd, as Administrator) |
+| `mkdir -p a/b` | `mkdir a\b` (creates intermediate directories) |
+| `cp -r src/. dst/` | `xcopy /E /I /Y src dst` or `robocopy src dst /E` |
+| `php …` when not on PATH | `C:\xampp\php\php.exe …` |
+| `a && b` | fine in **cmd**; not in PowerShell 5.1 — use separate lines |
 
 ## Configuration
 
@@ -322,6 +355,17 @@ itself.
 The origin was not allowlisted. `localhost`, `127.0.0.1` and `10.0.2.2` on any
 port are allowed by default; anything else must be added to
 `OTMS_ALLOWED_ORIGINS`.
+
+**Blank page after copying the build into a subfolder**
+The build was made without `--base-href`, so the app asks for `/main.dart.js`
+instead of `/OTMS1/preview/main.dart.js`. Rebuild with
+`flutter build web --debug --base-href=/OTMS1/preview/`.
+
+**`'ln' is not recognized` / `'mklink' is not recognized`**
+`ln` is a POSIX command and `mklink` is a cmd builtin that PowerShell cannot
+call, and that needs Administrator rights for `/D`. Either use the
+`--base-href` route in [Previewing in a browser](#previewing-in-a-browser-without-a-device),
+or open cmd as Administrator.
 
 **PowerShell complains about `<`**
 PowerShell does not support input redirection with `<`, so `mysql … < file.sql`
