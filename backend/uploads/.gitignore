@@ -1,0 +1,6 @@
+# Uploaded files are user data, not source: they are created at runtime by
+# save_upload() and must not be committed. The directory itself is kept (for the
+# .htaccess guard) by ignoring everything except the dotfiles here.
+*
+!.gitignore
+!.htaccess

@@ -36,8 +36,13 @@ try {
     $attemptId = (int)$row['attempt_id'];
     $assessmentId = (int)$row['assessment_id'];
 
-    $total = (int)db()->query('SELECT COALESCE(SUM(points),0) FROM questions WHERE assessment_id = ' . $assessmentId)->fetchColumn();
-    $earned = (int)db()->query('SELECT COALESCE(SUM(points_earned),0) FROM answers WHERE attempt_id = ' . $attemptId)->fetchColumn();
+    $totalStmt = db()->prepare('SELECT COALESCE(SUM(points),0) FROM questions WHERE assessment_id = ?');
+    $totalStmt->execute([$assessmentId]);
+    $total = (int)$totalStmt->fetchColumn();
+
+    $earnedStmt = db()->prepare('SELECT COALESCE(SUM(points_earned),0) FROM answers WHERE attempt_id = ?');
+    $earnedStmt->execute([$attemptId]);
+    $earned = (int)$earnedStmt->fetchColumn();
 
     // Any essay still ungraded (points_earned NULL)?
     $pending = db()->prepare(
