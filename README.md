@@ -125,6 +125,13 @@ flutter pub get
 flutter run -d chrome --dart-define=OTMS_API_BASE=http://localhost/OTMS1/backend
 ```
 
+> Nothing here starts the backend for you: `flutter run` only runs the client.
+> Apache and MySQL are separate processes — leave XAMPP from step 1 running.
+> The `--dart-define` above is mandatory, because the Flutter dev server picks a
+> random port and the web app otherwise looks for the backend on *its* origin
+> (`http://localhost:53241/OTMS1/backend`), not on Apache. The URL inside the
+> error message says which one it tried.
+
 Log in with the seeded accounts:
 
 | Email | Password | Role |
