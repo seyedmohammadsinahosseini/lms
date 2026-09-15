@@ -78,7 +78,7 @@ class _AssessmentsTabState extends State<AssessmentsTab>
         return ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (_, i) {
             final a = items[i];
             final attempt = a.attempt;

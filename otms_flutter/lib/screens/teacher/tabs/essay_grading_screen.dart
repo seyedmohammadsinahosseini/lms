@@ -55,7 +55,7 @@ class _EssayGradingScreenState extends State<EssayGradingScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: essayAnswers.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            separatorBuilder: (_, _) => const SizedBox(height: 16),
             itemBuilder: (_, i) => _EssayGradeCard(
               answer: essayAnswers[i],
               onGraded: _reload,

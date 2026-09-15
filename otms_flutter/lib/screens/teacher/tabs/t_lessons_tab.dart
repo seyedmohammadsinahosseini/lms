@@ -163,7 +163,6 @@ class _TLessonCardState extends State<_TLessonCard> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Theme(

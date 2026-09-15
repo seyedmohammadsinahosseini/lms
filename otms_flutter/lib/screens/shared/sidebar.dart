@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/models.dart';
-import '../../services/api_client.dart';
 import '../../state/auth_provider.dart';
 
 class Sidebar extends StatefulWidget {
@@ -13,7 +11,6 @@ class Sidebar extends StatefulWidget {
   final VoidCallback? onDashboardPressed;
   final VoidCallback? onClassesPressed;
   final VoidCallback? onCreateClassPressed;
-  final Function(int)? onClassDeleted;
 
   const Sidebar({
     super.key,
@@ -24,7 +21,6 @@ class Sidebar extends StatefulWidget {
     this.onDashboardPressed,
     this.onClassesPressed,
     this.onCreateClassPressed,
-    this.onClassDeleted,
   });
 
   @override
@@ -130,39 +126,6 @@ class _SidebarState extends State<Sidebar>
     _userMenuOverlay?.remove();
     _userMenuOverlay = null;
     if (mounted) setState(() => _isUserMenuOpen = false);
-  }
-
-  void _deleteClass(int classId) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Delete Class'),
-        content: const Text('Are you sure you want to delete this class? This cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
-    try {
-      await ApiClient.instance.deleteClass(classId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Class deleted')),
-      );
-      widget.onClassDeleted?.call(classId);
-      setState(() {});
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete class: $e')),
-      );
-    }
   }
 
 Widget _buildUserMenuContent() {
@@ -789,113 +752,6 @@ label: _isCollapsed
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildClassesList() {
-    return FutureBuilder<List<ClassModel>>(
-      future: ApiClient.instance.classes(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(
-              child: SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        }
-        final classes = snap.data ?? [];
-        if (classes.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'No classes yet',
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.outline,
-              ),
-            ),
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                'Classes',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.outline,
-                ),
-              ),
-            ),
-            ...classes.map((cls) => _buildClassItem(cls)),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildClassItem(ClassModel cls) {
-    final isSelected = widget.selectedClassId == cls.id;
-    final colorInt = hexColor(cls.color);
-    final color = Color(colorInt);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: InkWell(
-        onTap: () => widget.onClassSelected?.call(cls.id),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? color.withValues(alpha: 0.15)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: isSelected
-                ? Border.all(color: color, width: 1.5)
-                : null,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    cls.name,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected
-                          ? color
-                          : Theme.of(context).colorScheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Delete',
-                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                  onPressed: () => _deleteClass(cls.id),
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 

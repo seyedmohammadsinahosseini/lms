@@ -86,7 +86,7 @@ class _THomeworkTabState extends State<THomeworkTab>
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) => _card(items[i]),
           );
         },
@@ -182,9 +182,7 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
         classId: widget.classId,
         title: _title.text.trim(),
         description: _desc.text.trim(),
-        dueDate: _due == null
-            ? null
-            : _due!.toIso8601String().split('T').first,
+        dueDate: _due?.toIso8601String().split('T').first,
       );
       if (!mounted) return;
       Navigator.pop(context, true);
