@@ -10,6 +10,11 @@
 -- this file together to reset the sample content; the inserts that overlap the
 -- schema seed are written so they can be replayed without failing.
 
+-- Force utf8mb4 for this session. The mysql client defaults to latin1 on many
+-- systems, which silently double-encodes accented text and em dashes. On
+-- Windows you can also pass --default-character-set=utf8mb4 explicitly.
+SET NAMES utf8mb4;
+
 USE otms;
 
 -- Demo students reuse the seeded account's password hash.

@@ -75,6 +75,7 @@ class _QaTabState extends State<QaTab> with AutomaticKeepAliveClientMixin {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'student-qa-fab',
         onPressed: _ask,
         icon: const Icon(Icons.add_comment_outlined),
         label: const Text('Ask'),

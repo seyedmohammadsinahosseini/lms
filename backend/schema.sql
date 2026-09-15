@@ -1,5 +1,17 @@
 -- OTMS (Online Teaching & Management System) schema
 -- New database, independent of the legacy `training_management` DB.
+--
+-- Import it from a UTF-8 connection or the seed text below gets corrupted:
+--
+--   mysql -u root < backend/schema.sql
+--
+-- The mysql client on Windows (including XAMPP) may default to latin1/cp1252,
+-- which turns the em dashes and accented characters in the sample data into
+-- mojibake such as "Chapter 1 Ã¢â‚¬â€ Fractions". SET NAMES below pins the
+-- connection for the whole file; --default-character-set=utf8mb4 does the same
+-- thing from the command line if you prefer.
+
+SET NAMES utf8mb4;
 
 CREATE DATABASE IF NOT EXISTS otms CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE otms;

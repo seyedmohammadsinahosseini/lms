@@ -73,6 +73,7 @@ class _TLessonsTabState extends State<TLessonsTab>
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher-lessons-fab',
         onPressed: _createLesson,
         icon: const Icon(Icons.add),
         label: const Text('Lesson'),
