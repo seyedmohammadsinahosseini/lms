@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The app is entirely API-driven: every screen calls the PHP backend over
+         HTTP. Flutter's template only declares INTERNET in the debug and profile
+         manifests (for hot reload), so a release build would have had no network
+         access at all and every request would fail on a real phone. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="OTMS"
         android:name="${applicationName}"
