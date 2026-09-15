@@ -16,7 +16,12 @@ migrate_working_dir/
 *.iml
 *.ipr
 *.iws
-.idea/
+
+# IDE state is per-developer, so ignore all of it -- but keep the shared Flutter
+# run configurations (and their --dart-define for the API base URL) in version
+# control, so opening the project in Android Studio comes with working configs.
+.idea/*
+!.idea/runConfigurations/
 
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
