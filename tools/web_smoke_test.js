@@ -14,6 +14,10 @@
 //   node tools/web_smoke_test.js out.png
 //   node tools/web_smoke_test.js out.png steps.json
 //
+// Point it at a different address with APP_URL, e.g. when the app is served
+// from a subpath:
+//   APP_URL=http://127.0.0.1:8090/OTMS1/preview/ node tools/web_smoke_test.js out.png
+//
 // A steps file is a JSON array of actions, applied in order:
 //   [{"click": [640, 412]}, {"type": "teacher@otms.test"},
 //    {"click": [640, 477]}, {"type": "password"}, {"click": [640, 549]},
@@ -41,7 +45,9 @@ const fs = require('fs');
   });
   page.on('pageerror', e => console.log('[pageerror]', String(e).slice(0, 2500)));
 
-  await page.goto('http://127.0.0.1:8080/', { waitUntil: 'networkidle2', timeout: 120000 });
+  const appUrl = process.env.APP_URL || 'http://127.0.0.1:8080/';
+  console.log('loading', appUrl);
+  await page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 120000 });
 
   // Flutter web paints into a canvas; wait for the engine to be up.
   await page.waitForFunction(
