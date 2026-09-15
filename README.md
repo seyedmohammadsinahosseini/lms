@@ -188,7 +188,37 @@ network, and Apache must be allowed through the firewall (on Windows, allow
 Apache on **private** networks the first time it asks).
 
 If you use VS Code, [`.vscode/launch.json`](.vscode/launch.json) already contains
-these three configurations, so you can just press <kbd>F5</kbd>.
+these three configurations, so you can just press <kbd>F5</kbd>. Android Studio
+has the same three under `.idea/runConfigurations/`.
+
+#### Running on a physical phone
+
+A phone is not the emulator, so `10.0.2.2` (the emulator's alias for your PC) and
+`localhost` (which on a phone means *the phone*) both fail. The app has to be
+told where the backend is:
+
+```bat
+:: 1. the PC's address on the local network -- read the IPv4 Address line
+ipconfig
+
+:: 2. allow Apache through the firewall, once (cmd as Administrator)
+netsh advfirewall firewall add rule name="OTMS dev HTTP" dir=in action=allow protocol=TCP localport=80
+
+:: 3. run against that address
+flutter run --dart-define=OTMS_API_BASE=http://192.168.1.15/OTMS1/backend
+```
+
+Before blaming the app, open `http://192.168.1.15/OTMS1/backend/api/me.php` **in the
+phone's browser**. Seeing `{"error":"Not authenticated"}` proves the network,
+firewall and Apache are fine.
+
+No shared Wi-Fi, or the firewall will not cooperate? Forward the port over the USB
+cable instead — `adb reverse tcp:8080 tcp:80`, then use
+`--dart-define=OTMS_API_BASE=http://localhost:8080/OTMS1/backend`.
+
+A full step-by-step for Android Studio, including the run configuration dialog and
+a troubleshooting table, is in
+[docs/اجرا-روی-گوشی.md](docs/اجرا-روی-گوشی.md) (Persian).
 
 ### Previewing in a browser without a device
 
@@ -445,9 +475,11 @@ Please read these before putting this anywhere public.
   URL — serving them through an authorised endpoint is the next step.
 * **Change the database password** and stop using `root` for a public
   deployment; set `OTMS_DB_PASS` instead of editing code.
-* **HTTPS.** `android/app/src/main/AndroidManifest.xml` sets
-  `android:usesCleartextTraffic="true"` so the app can talk to a plain-HTTP
-  development server. Remove that flag once the backend is HTTPS.
+* **App permissions.** The manifest declares `android.permission.INTERNET` (the
+  app is entirely API-driven; Flutter's template puts that permission only in the
+  debug/profile manifests, which would have left a release build with no network
+  at all) and `android:usesCleartextTraffic="true"` so it can reach a plain-HTTP
+  development server. Drop the cleartext flag once the backend is HTTPS.
 * **Sessions** are bearer tokens valid for 30 days. Sign-in is throttled to 10
   failed attempts per account per address per 15 minutes; delete a user's rows
   from `sessions` to revoke access.
