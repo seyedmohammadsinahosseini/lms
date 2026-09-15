@@ -51,7 +51,7 @@ class _TStudentsTabState extends State<TStudentsTab>
         return ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: students.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (_, i) {
             final s = students[i];
             return Card(

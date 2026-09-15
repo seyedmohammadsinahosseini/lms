@@ -182,17 +182,19 @@ class _TakeAssessmentState extends State<TakeAssessment> {
       case 'multiple_choice':
       case 'true_false':
       case 'yes_no':
-        return Column(
-          children: q.options.map((o) {
-            return RadioListTile<int>(
-              value: o.id,
-              groupValue: _answers[q.id] as int?,
-              onChanged: (v) => setState(() => _answers[q.id] = v),
-              title: Text(o.text),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
-            );
-          }).toList(),
+        return RadioGroup<int>(
+          groupValue: _answers[q.id] as int?,
+          onChanged: (v) => setState(() => _answers[q.id] = v),
+          child: Column(
+            children: q.options.map((o) {
+              return RadioListTile<int>(
+                value: o.id,
+                title: Text(o.text),
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+              );
+            }).toList(),
+          ),
         );
       case 'fill_blank':
         return TextField(

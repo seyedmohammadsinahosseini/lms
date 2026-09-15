@@ -94,13 +94,17 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                               gradeCtrl.text.trim(),
                               feedbackCtrl.text.trim(),
                             );
-                            if (!mounted) return;
+                            // `context` here is the bottom sheet's; guard against
+                            // the sheet being dismissed while the request is in
+                            // flight. `mounted` (the screen's State) guards
+                            // `_reload()`, which rebuilds the screen, not the sheet.
+                            if (!context.mounted) return;
                             Navigator.pop(context);
-                            _reload();
+                            if (mounted) _reload();
                           } catch (e) {
-                            if (mounted) showError(context, e);
-                          } finally {
-                            if (mounted) setSheet(() => busy = false);
+                            if (!context.mounted) return;
+                            showError(context, e);
+                            setSheet(() => busy = false);
                           }
                         },
                   child: busy
@@ -143,7 +147,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) => _SubmissionCard(
               submission: items[i],
               onOpenFile: _openFile,

@@ -81,13 +81,6 @@ class _TeacherDashboardState extends State<TeacherDashboard>
     setState(() => _selectedClassId = null);
   }
 
-  void _onClassDeleted(int classId) {
-    if (_selectedClassId == classId) {
-      setState(() => _selectedClassId = null);
-    }
-    _loadClasses();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,7 +91,6 @@ body: Sidebar(
   onDashboardPressed: _onDashboardPressed,
   onClassesPressed: _onClassesPressed,
   onCreateClassPressed: _onCreateClass,
-  onClassDeleted: _onClassDeleted,
   child: _selectedClassId == null
       ? _buildDashboardOverview()
       : _buildClassDetail(_selectedClassId!),

@@ -87,7 +87,7 @@ class _AssessmentBuilderState extends State<AssessmentBuilder> {
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: questions.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (_, i) => _QuestionCard(
               question: questions[i],
               onDelete: () => _deleteQuestion(questions[i].id),
