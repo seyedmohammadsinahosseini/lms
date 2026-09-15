@@ -96,6 +96,7 @@ class _AssessmentBuilderState extends State<AssessmentBuilder> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'assessment-builder-fab',
         onPressed: _addQuestion,
         icon: const Icon(Icons.add),
         label: const Text('Add question'),

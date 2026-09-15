@@ -66,6 +66,7 @@ class _StudentHomeState extends State<StudentHome> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'student-home-fab',
         onPressed: _openJoin,
         icon: const Icon(Icons.qr_code_2),
         label: const Text('Join with code'),

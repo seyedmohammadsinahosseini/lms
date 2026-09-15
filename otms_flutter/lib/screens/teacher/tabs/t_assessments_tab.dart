@@ -108,6 +108,7 @@ class _TAssessmentsTabState extends State<TAssessmentsTab>
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher-assessments-fab',
         onPressed: _create,
         icon: const Icon(Icons.add),
         label: const Text('Assessment'),

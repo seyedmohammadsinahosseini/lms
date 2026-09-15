@@ -92,6 +92,7 @@ class _THomeworkTabState extends State<THomeworkTab>
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher-homework-fab',
         onPressed: _create,
         icon: const Icon(Icons.add),
         label: const Text('Homework'),

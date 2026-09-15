@@ -97,6 +97,7 @@ class _TeacherHomeState extends State<TeacherHome> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'teacher-home-fab',
         onPressed: _createClass,
         icon: const Icon(Icons.add),
         label: const Text('New class'),
