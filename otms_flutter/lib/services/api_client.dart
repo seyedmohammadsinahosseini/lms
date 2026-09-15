@@ -1,16 +1,27 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/config/env.dart';
 import '../models/models.dart';
 
-/// Thrown for any non-2xx API response. [message] is the server's error text.
+/// Thrown for any failed API call. [message] is safe to show to the user.
 class ApiException implements Exception {
   final String message;
   final int status;
   ApiException(this.message, this.status);
+
+  /// The request never produced an HTTP response: offline, DNS failure, refused
+  /// connection, or timeout.
+  ApiException.network(this.message) : status = 0;
+
+  bool get isNetworkError => status == 0;
+  bool get isUnauthorized => status == 401;
+  bool get isServerError => status >= 500;
+
   @override
   String toString() => message;
 }
@@ -18,17 +29,33 @@ class ApiException implements Exception {
 /// The single HTTP layer for the whole app. Every backend call goes through
 /// here, so swapping to a hosted API or Firebase later touches only this file.
 class ApiClient {
-  ApiClient._();
-  static final ApiClient instance = ApiClient._();
+  ApiClient({http.Client? httpClient}) : _http = httpClient ?? http.Client();
 
-  // Apache serves the PHP API here. `uploads/` sit one level up from `api/`.
-  static const String base = 'http://localhost/OTMS1/backend';
-  static const String apiBase = '$base/api';
+  /// The app-wide instance. Reassignable so tests can inject a mock-backed
+  /// client; see `test/api_client_test.dart`.
+  static ApiClient instance = ApiClient();
+
+  /// Base URL of the backend, from `Env` (see `core/config/env.dart`).
+  static String get base => Env.apiBaseUrl;
+  static String get apiBase => Env.apiBase;
+
+  /// How long a single request may take before it is treated as a failure.
+  static const Duration requestTimeout = Duration(seconds: 15);
+
+  /// Extra attempts allowed for GET requests on a transport failure. Worst case
+  /// for a data screen is therefore 2 x 15s plus backoff, not an unbounded hang.
+  static const int _maxRetries = 1;
 
   static const _tokenKey = 'otms_token';
+
+  final http.Client _http;
   String? _token;
 
   String? get token => _token;
+
+  /// Called when the server rejects the stored token, so the app can drop the
+  /// session instead of showing errors on every screen forever.
+  void Function()? onUnauthorized;
 
   /// Turns a stored relative file path (e.g. "uploads/ab12.pdf") into a URL.
   String fileUrl(String relativePath) => '$base/$relativePath';
@@ -70,22 +97,78 @@ class ApiClient {
       }
     }
     if (res.statusCode >= 200 && res.statusCode < 300) return data;
+    if (res.statusCode == 401 && _token != null) {
+      // A stored token was rejected: drop it so the app doesn't keep replaying
+      // it, and let the auth layer return to the login screen.
+      unawaited(_setToken(null));
+      onUnauthorized?.call();
+    }
     final msg = (data is Map && data['error'] != null)
         ? data['error'].toString()
         : 'Request failed (${res.statusCode})';
     throw ApiException(msg, res.statusCode);
   }
 
+  /// Runs [request] with a timeout and turns transport failures into
+  /// [ApiException]s with a message worth showing.
+  ///
+  /// [retry] is only safe for requests that can be replayed. A POST may already
+  /// have reached the server (submitting an attempt, uploading a file), so
+  /// replaying it could apply the change twice; it is also skipped on startup,
+  /// where retrying just keeps the user on the splash screen.
+  Future<http.Response> _send(
+    Future<http.Response> Function() request, {
+    required bool retry,
+  }) async {
+    final maxAttempts = retry ? _maxRetries + 1 : 1;
+    for (var attempt = 1;; attempt++) {
+      try {
+        return await request().timeout(requestTimeout);
+      } on TimeoutException {
+        if (attempt >= maxAttempts) {
+          throw ApiException.network(
+            'The server took too long to respond. Check your connection and try again.',
+          );
+        }
+      } on http.ClientException {
+        if (attempt >= maxAttempts) {
+          throw ApiException.network(
+            'Could not reach the server at $base. Check your connection and '
+            'that the backend is running.',
+          );
+        }
+      }
+      // Linear backoff: 300ms, then 600ms.
+      await Future<void>.delayed(Duration(milliseconds: 300 * attempt));
+    }
+  }
+
   Future<dynamic> _get(String path, [Map<String, dynamic>? query]) async {
-    final res = await http.get(_uri(path, query), headers: _authHeaders);
+    final res = await _send(
+      () => _http.get(_uri(path, query), headers: _authHeaders),
+      retry: true,
+    );
+    return _decode(res);
+  }
+
+  /// A GET that is never retried, for calls where a long wait is worse than an
+  /// immediate error (the startup token check).
+  Future<dynamic> _getOnce(String path) async {
+    final res = await _send(
+      () => _http.get(_uri(path), headers: _authHeaders),
+      retry: false,
+    );
     return _decode(res);
   }
 
   Future<dynamic> _post(String path, [Map<String, dynamic>? body]) async {
-    final res = await http.post(
-      _uri(path),
-      headers: {..._authHeaders, 'Content-Type': 'application/json'},
-      body: jsonEncode(body ?? {}),
+    final res = await _send(
+      () => _http.post(
+        _uri(path),
+        headers: {..._authHeaders, 'Content-Type': 'application/json'},
+        body: jsonEncode(body ?? {}),
+      ),
+      retry: false,
     );
     return _decode(res);
   }
@@ -105,8 +188,10 @@ class ApiClient {
       req.files.add(http.MultipartFile.fromBytes('file', fileBytes,
           filename: fileName));
     }
-    final streamed = await req.send();
-    final res = await http.Response.fromStream(streamed);
+    final res = await _send(
+      () async => http.Response.fromStream(await _http.send(req)),
+      retry: false,
+    );
     return _decode(res);
   }
 
@@ -138,13 +223,12 @@ class ApiClient {
   Future<User?> me() async {
     if (_token == null) return null;
     try {
-      final data = await _get('me.php');
+      final data = await _getOnce('me.php');
       return User.fromJson(Map<String, dynamic>.from(data['user']));
     } on ApiException catch (e) {
-      if (e.status == 401) {
-        await _setToken(null);
-        return null;
-      }
+      // _decode has already cleared the stored token and notified
+      // onUnauthorized for a 401.
+      if (e.isUnauthorized) return null;
       rethrow;
     }
   }
@@ -244,16 +328,16 @@ class ApiClient {
         'lesson_id': '$lessonId',
         'type': type,
         'title': title,
-        if (body != null) 'body': body,
-        if (url != null) 'url': url,
+        'body': ?body,
+        'url': ?url,
       }, fileBytes: fileBytes, fileName: fileName);
     } else {
       await _post('content_create.php', {
         'lesson_id': lessonId,
         'type': type,
         'title': title,
-        if (body != null) 'body': body,
-        if (url != null) 'url': url,
+        'body': ?body,
+        'url': ?url,
       });
     }
   }
@@ -373,7 +457,7 @@ class ApiClient {
         'class_id': classId,
         'title': title,
         'description': description,
-        if (dueDate != null) 'due_date': dueDate,
+        'due_date': ?dueDate,
       });
 
   Future<void> deleteHomework(int homeworkId) async =>
@@ -388,11 +472,11 @@ class ApiClient {
     if (fileBytes != null && fileName != null) {
       await _postMultipart('submission_submit.php', fields: {
         'homework_id': '$homeworkId',
-        if (text != null) 'text': text,
+        'text': ?text,
       }, fileBytes: fileBytes, fileName: fileName);
     } else {
       await _post('submission_submit.php',
-          {'homework_id': homeworkId, if (text != null) 'text': text});
+          {'homework_id': homeworkId, 'text': ?text});
     }
   }
 

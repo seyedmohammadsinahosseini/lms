@@ -6,7 +6,11 @@ import '../services/api_client.dart';
 /// Owns the authenticated user and drives the auth gate. Wraps ApiClient so
 /// widgets never touch the network layer directly.
 class AuthProvider extends ChangeNotifier {
-  final ApiClient _api = ApiClient.instance;
+  AuthProvider({ApiClient? api}) : _api = api ?? ApiClient.instance {
+    _api.onUnauthorized = _handleUnauthorized;
+  }
+
+  final ApiClient _api;
 
   User? _user;
   bool _loading = true; // true during the initial token restore
@@ -52,5 +56,20 @@ class AuthProvider extends ChangeNotifier {
     await _api.logout();
     _user = null;
     notifyListeners();
+  }
+
+  /// The server rejected the stored token, so the session is gone whether the
+  /// user asked for it or not. Dropping [_user] sends AuthGate back to login
+  /// instead of letting every screen fail with "unauthorized".
+  void _handleUnauthorized() {
+    if (_user == null) return;
+    _user = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    if (_api.onUnauthorized == _handleUnauthorized) _api.onUnauthorized = null;
+    super.dispose();
   }
 }
