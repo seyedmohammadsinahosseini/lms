@@ -31,6 +31,7 @@ The repository contains both halves of the product:
 - [Troubleshooting](#troubleshooting)
 - [Project layout](#project-layout)
 - [Deploying](#deploying)
+- [Pushing your work to GitHub](#pushing-your-work-to-github)
 - [Security notes](#security-notes)
 - [Known limitations](#known-limitations)
 
@@ -477,6 +478,35 @@ flutter build web --dart-define=OTMS_API_BASE=https://example.com/otms/backend
 For the web build, `flutter build web --release` produces `build/web/`. Copy its
 contents into a folder next to `backend/` and omit the flag entirely — the app
 then talks to the origin it was served from.
+
+---
+
+## Pushing your work to GitHub
+
+A workspace download has no `.git` folder — the archive excludes it — so the
+files are there but the commits are not. `otms-git-backup.bundle`, which sits
+next to them, contains the full history and is what restores it:
+
+```bat
+tools\push-to-github.bat
+```
+
+The script restores the history from the bundle when `.git` is missing, points
+`origin` at the repository, shows which commits are not on GitHub yet and
+pushes. Pass a different URL as an argument if the repository moved:
+
+```bat
+tools\push-to-github.bat https://github.com/USER/REPO.git
+```
+
+Pushing needs credentials, which is why this cannot be done for you from a
+sandbox: GitHub rejects the request with `could not read Username`. Git
+Credential Manager (bundled with Git for Windows) or a Personal Access Token —
+GitHub no longer accepts account passwords over HTTPS — covers it. The manual
+commands and the cases that go wrong (`repository not found`, `non-fast-forward`)
+are written up in [docs/پوش-به-گیتهاب.md](docs/پوش-به-گیتهاب.md) (Persian).
+
+Do not commit `otms-git-backup.bundle` itself; it duplicates the whole history.
 
 ---
 
