@@ -65,6 +65,15 @@ git clone https://github.com/seyedmohammadsinahosseini/my_flutter_app.git OTMS1
 The clone **must** be named `OTMS1`. If you already have the folder under
 another name, just rename it.
 
+> **Avoid spaces and parentheses in the path.** `C:\xampp\htdocs\New folder
+> (2)\OTMS` breaks in two ways at once: the folder is no longer `OTMS1`, so the
+> default `/OTMS1/backend` no longer points at it, and the raw space in
+> `http://localhost/New folder (2)/OTMS/backend` is not a valid URL. Move it:
+>
+> ```powershell
+> Move-Item "C:\xampp\htdocs\New folder (2)\OTMS" "C:\xampp\htdocs\OTMS1"
+> ```
+
 > Already have `C:\xampp\htdocs\OTMS1` with your own work in it? Clone elsewhere
 > and copy `backend\` and `otms_flutter\` into it, or use a different folder name
 > and pass `--dart-define=OTMS_API_BASE=...` when running the app (see
