@@ -3,13 +3,16 @@ setlocal
 rem ============================================================================
 rem  Push this project to GitHub.
 rem
-rem  A workspace download does not contain the .git folder (it is excluded from
-rem  the archive), so this script first restores the history from
-rem  otms-git-backup.bundle -- which sits next to the project files -- and then
+rem  A workspace download does not contain the .git folder -- it is excluded
+rem  from the archive -- so this script first restores the history from
+rem  otms-git-backup.bundle, which sits next to the project files, and then
 rem  pushes everything to GitHub. If .git is already present it is used as is.
 rem
+rem  Works against an empty repository (the first push) as well as one that
+rem  already has commits: it asks the remote first and says which case it is in.
+rem
 rem  Run it from anywhere:  tools\push-to-github.bat
-rem  Different repository?     tools\push-to-github.bat https://github.com/USER/REPO.git
+rem  Different repository?  tools\push-to-github.bat https://github.com/USER/REPO.git
 rem ============================================================================
 
 set "SELF=%~dp0"
@@ -20,7 +23,7 @@ if errorlevel 1 (
 )
 
 set "REMOTE=%~1"
-if "%REMOTE%"=="" set "REMOTE=https://github.com/seyedmohammadsinahosseini/my_flutter_app.git"
+if "%REMOTE%"=="" set "REMOTE=https://github.com/seyedmohammadsinahosseini/online-training-management-system.git"
 
 echo ============================================================
 echo   Push OTMS to GitHub
@@ -79,10 +82,10 @@ echo.
 echo [3/4] connecting to GitHub
 git remote remove origin >nul 2>nul
 git remote add origin "%REMOTE%"
-git fetch origin main
+git fetch origin
 if errorlevel 1 (
   echo.
-  echo [!] Could not read the repository.
+  echo [!] Could not reach the repository.
   echo     * It asked for a username/password: sign in with Git Credential
   echo       Manager, or use a Personal Access Token as the password.
   echo       GitHub no longer accepts account passwords over https.
@@ -90,19 +93,34 @@ if errorlevel 1 (
   echo       that the address is still right.
   exit /b 1
 )
-echo.
-echo       commits that are not on GitHub yet:
-git log --oneline origin/main..HEAD
+
+git rev-parse --verify --quiet origin/main >nul 2>nul
+if errorlevel 1 (
+  echo.
+  echo       the repository is empty -- this will be the first push.
+  echo       all of these commits go up:
+  git log --oneline HEAD
+) else (
+  echo.
+  echo       commits that are not on GitHub yet:
+  git log --oneline origin/main..HEAD
+)
 echo.
 
 echo [4/4] pushing
 git push -u origin HEAD:main
 if errorlevel 1 (
   echo.
-  echo [X] The push was rejected. When it says "non-fast-forward", the remote
-  echo     has commits this folder does not have. Run
-  echo         git pull --rebase origin main
-  echo     and then this script again. Do not force-push unless you are certain.
+  echo [X] The push was rejected.
+  echo     * "non-fast-forward" or "fetch first": the remote has commits this
+  echo       folder does not have. Run
+  echo           git pull --rebase origin main
+  echo       and then this script again.
+  echo     * "refusing to merge unrelated histories": the repository was
+  echo       created with its own commits, for example a README added on the
+  echo       website. Either delete that branch on GitHub, or run
+  echo           git pull --rebase origin main --allow-unrelated-histories
+  echo       Do not force-push unless you are certain.
   exit /b 1
 )
 
