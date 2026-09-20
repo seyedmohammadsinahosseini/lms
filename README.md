@@ -453,7 +453,7 @@ default (`AllowOverride All` for `htdocs`) works out of the box; a custom
 │   │   ├── main.dart     bootstrap only
 │   │   ├── core/         API base URL configuration
 │   │   ├── models/       data models mirroring the API JSON
-│   │   ├── services/     ApiClient — the single HTTP layer
+│   │   ├── services/     OmsApi contract, Api.instance seam, HTTP client
 │   │   ├── state/        AuthProvider, ThemeProvider
 │   │   └── screens/      auth / shared / student / teacher
 │   └── test/             widget, network and auth tests
