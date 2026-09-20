@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../../state/auth_provider.dart';
 import '../../state/theme_provider.dart';
 import '../shared/widgets.dart';
@@ -21,11 +21,11 @@ class _StudentHomeState extends State<StudentHome> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.classes();
+    _future = Api.instance.classes();
   }
 
   void _reload() {
-    setState(() => _future = ApiClient.instance.classes());
+    setState(() => _future = Api.instance.classes());
   }
 
   Future<void> _openJoin() async {

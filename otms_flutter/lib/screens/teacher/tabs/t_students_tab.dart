@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart';
 
 /// Roster of students enrolled in a class.
@@ -22,11 +22,11 @@ class _TStudentsTabState extends State<TStudentsTab>
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.classStudents(widget.classId);
+    _future = Api.instance.classStudents(widget.classId);
   }
 
   void _reload() => setState(
-      () => _future = ApiClient.instance.classStudents(widget.classId));
+      () => _future = Api.instance.classStudents(widget.classId));
 
   @override
   Widget build(BuildContext context) {

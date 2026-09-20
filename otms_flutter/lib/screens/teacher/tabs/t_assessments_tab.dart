@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 import '../assessment_builder.dart';
 import 'attempts_screen.dart';
@@ -25,11 +25,11 @@ class _TAssessmentsTabState extends State<TAssessmentsTab>
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.assessments(widget.classId);
+    _future = Api.instance.assessments(widget.classId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.assessments(widget.classId));
+      setState(() => _future = Api.instance.assessments(widget.classId));
 
   Future<void> _create() async {
     final created = await showModalBottomSheet<bool>(
@@ -54,7 +54,7 @@ class _TAssessmentsTabState extends State<TAssessmentsTab>
     );
     if (confirm != true) return;
     try {
-      await ApiClient.instance.deleteAssessment(assessmentId);
+      await Api.instance.deleteAssessment(assessmentId);
       if (!mounted) return;
       showOk(context, 'Assessment deleted');
       _reload();
@@ -203,7 +203,7 @@ class _CreateAssessmentSheetState extends State<_CreateAssessmentSheet> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance.createAssessment(
+      await Api.instance.createAssessment(
         classId: widget.classId,
         title: _title.text.trim(),
         description: _desc.text.trim(),

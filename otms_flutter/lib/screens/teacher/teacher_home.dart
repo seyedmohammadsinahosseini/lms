@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../../state/auth_provider.dart';
 import '../../state/theme_provider.dart';
 import '../shared/widgets.dart';
@@ -23,12 +23,12 @@ class _TeacherHomeState extends State<TeacherHome> {
   @override
   void initState() {
     super.initState();
-    _classes = ApiClient.instance.classes();
-    _code = ApiClient.instance.getCode();
+    _classes = Api.instance.classes();
+    _code = Api.instance.getCode();
   }
 
   void _reload() =>
-      setState(() => _classes = ApiClient.instance.classes());
+      setState(() => _classes = Api.instance.classes());
 
   Future<void> _regenerate() async {
     final ok = await showDialog<bool>(
@@ -49,7 +49,7 @@ class _TeacherHomeState extends State<TeacherHome> {
     );
     if (ok != true) return;
     try {
-      final code = await ApiClient.instance.regenerateCode();
+      final code = await Api.instance.regenerateCode();
       if (!mounted) return;
       setState(() => _code = Future.value(code));
       showOk(context, 'New code generated.');
@@ -305,7 +305,7 @@ class _ClassCard extends StatelessWidget {
     );
 if (confirm != true) return;
       try {
-        await ApiClient.instance.deleteClass(classId);
+        await Api.instance.deleteClass(classId);
         if (!context.mounted) return;
         showOk(context, 'Class deleted');
       } catch (e) {
@@ -344,7 +344,7 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance
+      await Api.instance
           .createClass(_name.text.trim(), _desc.text.trim(), _color);
       if (!mounted) return;
       Navigator.pop(context, true);

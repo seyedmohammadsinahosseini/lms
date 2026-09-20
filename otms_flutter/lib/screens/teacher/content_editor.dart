@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/file_helper.dart';
 import '../shared/widgets.dart';
 
@@ -52,7 +52,7 @@ class _ContentEditorState extends State<ContentEditor> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance.createContent(
+      await Api.instance.createContent(
         lessonId: widget.lessonId,
         type: _type,
         title: _title.text.trim(),

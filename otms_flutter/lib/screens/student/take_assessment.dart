@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart';
 import 'attempt_result.dart';
 
@@ -29,7 +29,7 @@ class _TakeAssessmentState extends State<TakeAssessment> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.assessmentDetail(widget.assessmentId);
+    _future = Api.instance.assessmentDetail(widget.assessmentId);
   }
 
   @override
@@ -78,7 +78,7 @@ class _TakeAssessmentState extends State<TakeAssessment> {
     setState(() => _submitting = true);
     try {
       final result =
-          await ApiClient.instance.submitAttempt(widget.assessmentId, _answers);
+          await Api.instance.submitAttempt(widget.assessmentId, _answers);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(
         builder: (_) => AttemptResultScreen(attemptId: result.attemptId),
@@ -105,7 +105,7 @@ class _TakeAssessmentState extends State<TakeAssessment> {
             return ErrorRetry(
                 error: snap.error!,
                 onRetry: () => setState(() => _future =
-                    ApiClient.instance.assessmentDetail(widget.assessmentId)));
+                    Api.instance.assessmentDetail(widget.assessmentId)));
           }
           final a = snap.data!;
           if (a.questions.isEmpty) {

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
-import '../services/api_client.dart';
+import '../services/api.dart';
 
-/// Owns the authenticated user and drives the auth gate. Wraps ApiClient so
+/// Owns the authenticated user and drives the auth gate. Talks to OmsApi so
 /// widgets never touch the network layer directly.
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({ApiClient? api}) : _api = api ?? ApiClient.instance {
+  AuthProvider({OmsApi? api}) : _api = api ?? Api.instance {
     _api.onUnauthorized = _handleUnauthorized;
   }
 
-  final ApiClient _api;
+  final OmsApi _api;
 
   User? _user;
   bool _loading = true; // true during the initial token restore

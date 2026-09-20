@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart';
 import '../../student/content_viewer.dart';
 import '../content_editor.dart';
@@ -25,17 +25,17 @@ class _TLessonsTabState extends State<TLessonsTab>
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.lessons(widget.classId);
+    _future = Api.instance.lessons(widget.classId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.lessons(widget.classId));
+      setState(() => _future = Api.instance.lessons(widget.classId));
 
   Future<void> _createLesson() async {
     final title = await _promptText(context, 'New lesson', 'Lesson title');
     if (title == null || title.trim().isEmpty) return;
     try {
-      await ApiClient.instance.createLesson(widget.classId, title.trim());
+      await Api.instance.createLesson(widget.classId, title.trim());
       if (!mounted) return;
       showOk(context, 'Lesson created');
       _reload();
@@ -95,7 +95,7 @@ class _TLessonCardState extends State<_TLessonCard> {
 
   void _load() {
     setState(() =>
-        _contents = ApiClient.instance.contents(widget.lesson.id));
+        _contents = Api.instance.contents(widget.lesson.id));
   }
 
   IconData _iconFor(String type) {
@@ -130,7 +130,7 @@ class _TLessonCardState extends State<_TLessonCard> {
     );
     if (confirm != true) return;
     try {
-      await ApiClient.instance.deleteContent(contentId);
+      await Api.instance.deleteContent(contentId);
       if (!mounted) return;
       showOk(context, 'Content deleted');
       _load();
@@ -153,7 +153,7 @@ class _TLessonCardState extends State<_TLessonCard> {
     );
     if (confirm != true) return;
     try {
-      await ApiClient.instance.deleteLesson(widget.lesson.id);
+      await Api.instance.deleteLesson(widget.lesson.id);
       if (!mounted) return;
       showOk(context, 'Lesson deleted');
       widget.onDeleted();

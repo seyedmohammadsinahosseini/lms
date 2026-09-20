@@ -3,7 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart';
 
 /// Renders one content item. Videos open externally (or the attached file);
@@ -33,7 +33,7 @@ class ContentViewer extends StatelessWidget {
   Widget _videoBody(BuildContext context) {
     final link = content.url ??
         (content.filePath != null
-            ? ApiClient.instance.fileUrl(content.filePath!)
+            ? Api.instance.fileUrl(content.filePath!)
             : null);
     return Center(
       child: Padding(

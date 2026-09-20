@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart';
 import '../take_assessment.dart';
 import '../attempt_result.dart';
@@ -24,11 +24,11 @@ class _AssessmentsTabState extends State<AssessmentsTab>
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.assessments(widget.classId);
+    _future = Api.instance.assessments(widget.classId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.assessments(widget.classId));
+      setState(() => _future = Api.instance.assessments(widget.classId));
 
   Color _kindColor(String kind) {
     switch (kind) {

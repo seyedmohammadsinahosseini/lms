@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart';
 
 /// Student enters a teacher's code, sees every class that teacher offers,
@@ -32,7 +32,7 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
     if (code.isEmpty) return;
     setState(() => _looking = true);
     try {
-      final res = await ApiClient.instance.lookupCode(code);
+      final res = await Api.instance.lookupCode(code);
       setState(() => _result = res);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -44,10 +44,10 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
   Future<void> _enroll(LookupClass cls) async {
     setState(() => _enrolling.add(cls.id));
     try {
-      await ApiClient.instance.enroll(cls.id);
+      await Api.instance.enroll(cls.id);
       _enrolledSomething = true;
       // Refresh the lookup so the enrolled flag updates.
-      final res = await ApiClient.instance.lookupCode(_code.text.trim());
+      final res = await Api.instance.lookupCode(_code.text.trim());
       if (mounted) setState(() => _result = res);
       if (mounted) showOk(context, 'Enrolled in ${cls.name}');
     } catch (e) {

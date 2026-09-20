@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart';
 import '../content_viewer.dart';
 
@@ -23,11 +23,11 @@ class _LessonsTabState extends State<LessonsTab>
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.lessons(widget.classId);
+    _future = Api.instance.lessons(widget.classId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.lessons(widget.classId));
+      setState(() => _future = Api.instance.lessons(widget.classId));
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +70,7 @@ class _LessonCardState extends State<_LessonCard> {
   Future<List<Content>>? _contents;
 
   void _loadOnce() {
-    _contents ??= ApiClient.instance.contents(widget.lesson.id);
+    _contents ??= Api.instance.contents(widget.lesson.id);
   }
 
   IconData _iconFor(String type) {
