@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart';
 
 /// A single Q&A thread: the original question plus replies, with an inline
@@ -22,7 +22,7 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.qaThread(widget.threadId);
+    _future = Api.instance.qaThread(widget.threadId);
   }
 
   @override
@@ -32,14 +32,14 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.qaThread(widget.threadId));
+      setState(() => _future = Api.instance.qaThread(widget.threadId));
 
   Future<void> _send() async {
     final body = _reply.text.trim();
     if (body.isEmpty) return;
     setState(() => _sending = true);
     try {
-      await ApiClient.instance.replyThread(widget.threadId, body);
+      await Api.instance.replyThread(widget.threadId, body);
       _reply.clear();
       if (!mounted) return;
       _reload();

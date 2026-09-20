@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/config/env.dart';
 import '../models/models.dart';
+import 'oms_api.dart';
 
 /// Thrown for any failed API call. [message] is safe to show to the user.
 class ApiException implements Exception {
@@ -28,12 +29,10 @@ class ApiException implements Exception {
 
 /// The single HTTP layer for the whole app. Every backend call goes through
 /// here, so swapping to a hosted API or Firebase later touches only this file.
-class ApiClient {
+class ApiClient implements OmsApi {
   ApiClient({http.Client? httpClient}) : _http = httpClient ?? http.Client();
 
   /// The app-wide instance. Reassignable so tests can inject a mock-backed
-  /// client; see `test/api_client_test.dart`.
-  static ApiClient instance = ApiClient();
 
   /// Base URL of the backend, from `Env` (see `core/config/env.dart`).
   static String get base => Env.apiBaseUrl;
@@ -55,11 +54,14 @@ class ApiClient {
 
   /// Called when the server rejects the stored token, so the app can drop the
   /// session instead of showing errors on every screen forever.
+  @override
   void Function()? onUnauthorized;
 
   /// Turns a stored relative file path (e.g. "uploads/ab12.pdf") into a URL.
+  @override
   String fileUrl(String relativePath) => '$base/$relativePath';
 
+  @override
   Future<void> loadToken() async {
     final prefs = await _prefs();
     _token = prefs?.getString(_tokenKey);
@@ -214,6 +216,7 @@ class ApiClient {
 
   // ---- Auth ----------------------------------------------------------------
 
+  @override
   Future<User> register({
     required String fullName,
     required String email,
@@ -230,6 +233,7 @@ class ApiClient {
     return User.fromJson(Map<String, dynamic>.from(data['user']));
   }
 
+  @override
   Future<User> login(String email, String password) async {
     final data =
         await _post('login.php', {'email': email, 'password': password});
@@ -237,6 +241,7 @@ class ApiClient {
     return User.fromJson(Map<String, dynamic>.from(data['user']));
   }
 
+  @override
   Future<User?> me() async {
     if (_token == null) return null;
     try {
@@ -250,6 +255,7 @@ class ApiClient {
     }
   }
 
+  @override
   Future<void> logout() async {
     try {
       await _post('logout.php');
@@ -261,12 +267,15 @@ class ApiClient {
 
   // ---- Teacher codes -------------------------------------------------------
 
+  @override
   Future<String?> getCode() async => (await _get('code_get.php'))['code'];
 
+  @override
   Future<String> regenerateCode() async =>
       (await _post('code_regenerate.php'))['code'];
 
   /// Student looks up a teacher code; returns teacher info + selectable classes.
+  @override
   Future<CodeLookup> lookupCode(String code) async {
     final data = await _post('code_lookup.php', {'code': code});
     return CodeLookup(
@@ -280,6 +289,7 @@ class ApiClient {
 
   // ---- Classes -------------------------------------------------------------
 
+  @override
   Future<List<ClassModel>> classes() async {
     final data = await _get('classes_list.php');
     return ((data['classes'] ?? []) as List)
@@ -287,6 +297,7 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<ClassModel> createClass(String name, String description,
       String color) async {
     final data = await _post('class_create.php',
@@ -294,12 +305,15 @@ class ApiClient {
     return ClassModel.fromJson(Map<String, dynamic>.from(data));
   }
 
+  @override
   Future<void> enroll(int classId) async =>
       _post('enroll.php', {'class_id': classId});
 
+  @override
   Future<void> deleteClass(int classId) async =>
       _post('class_delete.php', {'class_id': classId});
 
+  @override
   Future<List<StudentRow>> classStudents(int classId) async {
     final data = await _get('class_students.php', {'class_id': classId});
     return ((data['students'] ?? []) as List)
@@ -309,6 +323,7 @@ class ApiClient {
 
   // ---- Lessons & content ---------------------------------------------------
 
+  @override
   Future<List<Lesson>> lessons(int classId) async {
     final data = await _get('lessons_list.php', {'class_id': classId});
     return ((data['lessons'] ?? []) as List)
@@ -316,12 +331,14 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<Lesson> createLesson(int classId, String title) async {
     final data =
         await _post('lesson_create.php', {'class_id': classId, 'title': title});
     return Lesson.fromJson(Map<String, dynamic>.from(data));
   }
 
+  @override
   Future<List<Content>> contents(int lessonId) async {
     final data = await _get('content_list.php', {'lesson_id': lessonId});
     return ((data['contents'] ?? []) as List)
@@ -331,6 +348,7 @@ class ApiClient {
 
   /// Create content. For `video` pass [url]; for note/booklet pass [body];
   /// optionally attach a file via [fileBytes]/[fileName].
+  @override
   Future<void> createContent({
     required int lessonId,
     required String type,
@@ -359,14 +377,17 @@ class ApiClient {
     }
   }
 
+  @override
   Future<void> deleteLesson(int lessonId) async =>
       _post('lesson_delete.php', {'lesson_id': lessonId});
 
+  @override
   Future<void> deleteContent(int contentId) async =>
       _post('content_delete.php', {'content_id': contentId});
 
   // ---- Assessments ---------------------------------------------------------
 
+  @override
   Future<List<Assessment>> assessments(int classId) async {
     final data = await _get('assessments_list.php', {'class_id': classId});
     return ((data['assessments'] ?? []) as List)
@@ -374,6 +395,7 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<int> createAssessment({
     required int classId,
     required String title,
@@ -391,17 +413,21 @@ class ApiClient {
     return _asIntPub(data['id']);
   }
 
+  @override
   Future<void> deleteAssessment(int assessmentId) async =>
       _post('assessment_delete.php', {'assessment_id': assessmentId});
 
   /// Adds a question. [payload] must already carry type-specific fields
   /// (options[] / correct / answer) per the backend contract.
+  @override
   Future<void> addQuestion(Map<String, dynamic> payload) async =>
       _post('question_add.php', payload);
 
+  @override
   Future<void> deleteQuestion(int questionId) async =>
       _post('question_delete.php', {'question_id': questionId});
 
+  @override
   Future<AssessmentDetail> assessmentDetail(int id) async {
     final data = await _get('assessment_get.php', {'id': id});
     return AssessmentDetail(
@@ -418,6 +444,7 @@ class ApiClient {
   }
 
   /// Submit an attempt. [answers] maps question id -> option id (int) or text.
+  @override
   Future<AttemptResult> submitAttempt(
       int assessmentId, Map<int, dynamic> answers) async {
     final data = await _post('attempt_submit.php', {
@@ -431,6 +458,7 @@ class ApiClient {
     );
   }
 
+  @override
   Future<List<Attempt>> attempts(int assessmentId) async {
     final data = await _get('attempts_list.php', {'assessment_id': assessmentId});
     return ((data['attempts'] ?? []) as List)
@@ -438,6 +466,7 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<AttemptDetail> attemptDetail(int id) async {
     final data = await _get('attempt_get.php', {'id': id});
     return AttemptDetail(
@@ -451,12 +480,14 @@ class ApiClient {
     );
   }
 
+  @override
   Future<void> gradeEssay(int answerId, int pointsEarned) async =>
       _post('essay_grade.php',
           {'answer_id': answerId, 'points_earned': pointsEarned});
 
   // ---- Homework ------------------------------------------------------------
 
+  @override
   Future<List<Homework>> homework(int classId) async {
     final data = await _get('homework_list.php', {'class_id': classId});
     return ((data['homework'] ?? []) as List)
@@ -464,6 +495,7 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<void> createHomework({
     required int classId,
     required String title,
@@ -477,9 +509,11 @@ class ApiClient {
         'due_date': ?dueDate,
       });
 
+  @override
   Future<void> deleteHomework(int homeworkId) async =>
       _post('homework_delete.php', {'homework_id': homeworkId});
 
+  @override
   Future<void> submitHomework({
     required int homeworkId,
     String? text,
@@ -497,6 +531,7 @@ class ApiClient {
     }
   }
 
+  @override
   Future<List<Submission>> submissions(int homeworkId) async {
     final data = await _get('submissions_list.php', {'homework_id': homeworkId});
     return ((data['submissions'] ?? []) as List)
@@ -504,6 +539,7 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<void> gradeSubmission(
           int submissionId, String grade, String feedback) async =>
       _post('submission_grade.php', {
@@ -512,11 +548,13 @@ class ApiClient {
         'feedback': feedback,
       });
 
+  @override
   Future<void> deleteSubmission(int submissionId) async =>
       _post('submission_delete.php', {'submission_id': submissionId});
 
   // ---- Q&A -----------------------------------------------------------------
 
+  @override
   Future<List<QaThread>> qaThreads(int classId) async {
     final data = await _get('qa_list.php', {'class_id': classId});
     return ((data['threads'] ?? []) as List)
@@ -524,15 +562,18 @@ class ApiClient {
         .toList();
   }
 
+  @override
   Future<int> createThread(int classId, String title, String body) async {
     final data = await _post('qa_create.php',
         {'class_id': classId, 'title': title, 'body': body});
     return _asIntPub(data['id']);
   }
 
+  @override
   Future<void> replyThread(int threadId, String body) async =>
       _post('qa_reply.php', {'thread_id': threadId, 'body': body});
 
+  @override
   Future<QaThreadDetail> qaThread(int id) async {
     final data = await _get('qa_thread.php', {'id': id});
     return QaThreadDetail(

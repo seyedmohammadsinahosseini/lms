@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 
 /// Teacher screen to grade essay answers in an attempt.
@@ -19,11 +19,11 @@ class _EssayGradingScreenState extends State<EssayGradingScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.attemptDetail(widget.attemptId);
+    _future = Api.instance.attemptDetail(widget.attemptId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.attemptDetail(widget.attemptId));
+      setState(() => _future = Api.instance.attemptDetail(widget.attemptId));
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +96,7 @@ class _EssayGradeCardState extends State<_EssayGradeCard> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance.gradeEssay(widget.answer.answerId!, points);
+      await Api.instance.gradeEssay(widget.answer.answerId!, points);
       if (!mounted) return;
       showOk(context, 'Essay graded');
       widget.onGraded();

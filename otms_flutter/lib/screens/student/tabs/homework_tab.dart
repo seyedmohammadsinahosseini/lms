@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/file_helper.dart';
 import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 
@@ -25,11 +25,11 @@ class _HomeworkTabState extends State<HomeworkTab>
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.homework(widget.classId);
+    _future = Api.instance.homework(widget.classId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.homework(widget.classId));
+      setState(() => _future = Api.instance.homework(widget.classId));
 
   Future<void> _openSubmit(Homework hw) async {
     final done = await showModalBottomSheet<bool>(
@@ -170,7 +170,7 @@ class _HomeworkTabState extends State<HomeworkTab>
     );
     if (confirm != true) return;
     try {
-      await ApiClient.instance.deleteSubmission(submissionId);
+      await Api.instance.deleteSubmission(submissionId);
       if (!mounted) return;
       showOk(context, 'Submission deleted');
       _reload();
@@ -210,7 +210,7 @@ class _SubmitSheetState extends State<_SubmitSheet> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance.submitHomework(
+      await Api.instance.submitHomework(
         homeworkId: widget.homework.id,
         text: _text.text.trim().isEmpty ? null : _text.text.trim(),
         fileBytes: _file?.bytes,

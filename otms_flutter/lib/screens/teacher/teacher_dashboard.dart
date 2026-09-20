@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../../state/auth_provider.dart';
 import '../shared/widgets.dart';
 import '../shared/sidebar.dart';
@@ -40,7 +40,7 @@ class _TeacherDashboardState extends State<TeacherDashboard>
 
   Future<void> _loadClasses() async {
     try {
-      final classes = await ApiClient.instance.classes();
+      final classes = await Api.instance.classes();
       if (mounted) {
         setState(() {
           _classes = classes;
@@ -761,7 +761,7 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance
+      await Api.instance
           .createClass(_name.text.trim(), _desc.text.trim(), _color);
       if (!mounted) return;
       Navigator.pop(context, true);

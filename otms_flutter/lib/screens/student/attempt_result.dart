@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart';
 
 /// Shows a graded (or pending) attempt with per-question breakdown.
@@ -19,7 +19,7 @@ class _AttemptResultScreenState extends State<AttemptResultScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.attemptDetail(widget.attemptId);
+    _future = Api.instance.attemptDetail(widget.attemptId);
   }
 
   @override
@@ -36,7 +36,7 @@ class _AttemptResultScreenState extends State<AttemptResultScreen> {
             return ErrorRetry(
                 error: snap.error!,
                 onRetry: () => setState(() => _future =
-                    ApiClient.instance.attemptDetail(widget.attemptId)));
+                    Api.instance.attemptDetail(widget.attemptId)));
           }
           final a = snap.data!;
           final pending = a.status == 'completed';

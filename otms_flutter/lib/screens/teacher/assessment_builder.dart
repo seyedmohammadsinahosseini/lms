@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 
 /// Teacher screen to author questions for an assessment.
@@ -24,11 +24,11 @@ class _AssessmentBuilderState extends State<AssessmentBuilder> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.assessmentDetail(widget.assessmentId);
+    _future = Api.instance.assessmentDetail(widget.assessmentId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.assessmentDetail(widget.assessmentId));
+      setState(() => _future = Api.instance.assessmentDetail(widget.assessmentId));
 
   Future<void> _addQuestion() async {
     final added = await showModalBottomSheet<bool>(
@@ -53,7 +53,7 @@ class _AssessmentBuilderState extends State<AssessmentBuilder> {
     );
     if (confirm != true) return;
     try {
-      await ApiClient.instance.deleteQuestion(questionId);
+      await Api.instance.deleteQuestion(questionId);
       if (!mounted) return;
       showOk(context, 'Question deleted');
       _reload();
@@ -307,7 +307,7 @@ class _QuestionEditorSheetState extends State<_QuestionEditorSheet> {
 
     setState(() => _busy = true);
     try {
-      await ApiClient.instance.addQuestion(payload);
+      await Api.instance.addQuestion(payload);
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {

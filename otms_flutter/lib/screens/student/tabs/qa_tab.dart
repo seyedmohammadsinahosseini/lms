@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart';
 import '../qa_thread_screen.dart';
 
@@ -23,11 +23,11 @@ class _QaTabState extends State<QaTab> with AutomaticKeepAliveClientMixin {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.qaThreads(widget.classId);
+    _future = Api.instance.qaThreads(widget.classId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.qaThreads(widget.classId));
+      setState(() => _future = Api.instance.qaThreads(widget.classId));
 
   Future<void> _open(int threadId) async {
     await Navigator.of(context).push(MaterialPageRoute(
@@ -137,7 +137,7 @@ class _AskSheetState extends State<_AskSheet> {
     }
     setState(() => _busy = true);
     try {
-      await ApiClient.instance
+      await Api.instance
           .createThread(widget.classId, _title.text.trim(), _body.text.trim());
       if (!mounted) return;
       Navigator.pop(context, true);

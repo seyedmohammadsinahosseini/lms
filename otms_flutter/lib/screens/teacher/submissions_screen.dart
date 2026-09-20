@@ -2,7 +2,7 @@ import 'package:flutter/material.dart' hide Badge;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError;
 
 /// Teacher view of all submissions for one homework item.
@@ -25,14 +25,14 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.submissions(widget.homeworkId);
+    _future = Api.instance.submissions(widget.homeworkId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.submissions(widget.homeworkId));
+      setState(() => _future = Api.instance.submissions(widget.homeworkId));
 
   Future<void> _openFile(String filePath) async {
-    final url = ApiClient.instance.fileUrl(filePath);
+    final url = Api.instance.fileUrl(filePath);
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) showError(context, 'Could not open file');
@@ -89,7 +89,7 @@ class _SubmissionsScreenState extends State<SubmissionsScreen> {
                       : () async {
                           setSheet(() => busy = true);
                           try {
-                            await ApiClient.instance.gradeSubmission(
+                            await Api.instance.gradeSubmission(
                               s.id,
                               gradeCtrl.text.trim(),
                               feedbackCtrl.text.trim(),

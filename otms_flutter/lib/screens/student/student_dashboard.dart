@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/models.dart';
-import '../../services/api_client.dart';
+import '../../services/api.dart';
 import '../../state/auth_provider.dart';
 import '../shared/sidebar.dart';
 import 'tabs/assessments_tab.dart';
@@ -41,7 +41,7 @@ class _StudentDashboardState extends State<StudentDashboard>
 
   Future<void> _loadClasses() async {
     try {
-      final classes = await ApiClient.instance.classes();
+      final classes = await Api.instance.classes();
       if (mounted) {
         setState(() {
           _classes = classes;

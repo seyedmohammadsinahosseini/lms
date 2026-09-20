@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
-import '../../../services/api_client.dart';
+import '../../../services/api.dart';
 import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge;
 import 'essay_grading_screen.dart';
 import '../../student/attempt_result.dart';
@@ -26,11 +26,11 @@ class _AttemptsScreenState extends State<AttemptsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = ApiClient.instance.attempts(widget.assessmentId);
+    _future = Api.instance.attempts(widget.assessmentId);
   }
 
   void _reload() =>
-      setState(() => _future = ApiClient.instance.attempts(widget.assessmentId));
+      setState(() => _future = Api.instance.attempts(widget.assessmentId));
 
   @override
   Widget build(BuildContext context) {
