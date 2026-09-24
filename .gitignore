@@ -26,3 +26,8 @@ Thumbs.db
 
 # Logs and scratch files
 *.log
+
+# CI: GitHub refuses a push that creates a workflow file when the token
+# has no `workflow` scope, so the file is kept locally and ignored here. To
+# enable Actions: delete these two lines and push with a workflow-scoped token.
+.github/workflows/ci.yml

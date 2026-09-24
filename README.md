@@ -371,8 +371,11 @@ its contents each run.
 On Windows run them from **Git Bash** (they are bash scripts). Change the port
 with `PORT=8099 bash tools/api_test.sh`.
 
-The same checks run on every push through
-[GitHub Actions](.github/workflows/ci.yml).
+The same checks are defined for [GitHub Actions](.github/workflows/ci.yml),
+but that file is not in the repository: GitHub refuses to let a token without
+the `workflow` scope create a workflow file, so it is kept locally and listed
+in `.gitignore`. To turn CI on, delete that ignore line and push with such a
+token -- or paste the file in through the web UI.
 
 ---
 
@@ -458,7 +461,7 @@ default (`AllowOverride All` for `htdocs`) works out of the box; a custom
 │   │   └── screens/      auth / shared / student / teacher
 │   └── test/             widget, network and auth tests
 ├── tools/          API and security test scripts
-└── .github/        CI workflow
+└── .github/        CI workflow (kept local; see Tests)
 ```
 
 ---
