@@ -60,7 +60,7 @@ client's default API address is `http://localhost/OTMS1/backend`.
 
 ```bat
 cd C:\xampp\htdocs
-git clone https://github.com/seyedmohammadsinahosseini/online-training-management-system.git OTMS1
+git clone https://github.com/seyedmohammadsinahosseini/otms.git OTMS1
 ```
 
 The clone **must** be named `OTMS1`. If you already have the folder under

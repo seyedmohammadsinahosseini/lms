@@ -23,7 +23,7 @@ if errorlevel 1 (
 )
 
 set "REMOTE=%~1"
-if "%REMOTE%"=="" set "REMOTE=https://github.com/seyedmohammadsinahosseini/online-training-management-system.git"
+if "%REMOTE%"=="" set "REMOTE=https://github.com/seyedmohammadsinahosseini/otms.git"
 
 echo ============================================================
 echo   Push OTMS to GitHub
