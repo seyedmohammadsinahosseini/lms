@@ -26,6 +26,14 @@ class _LessonsTabState extends State<LessonsTab>
     _future = Api.instance.lessons(widget.classId);
   }
 
+  @override
+  void didUpdateWidget(covariant LessonsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.lessons(widget.classId);
+    }
+  }
+
   void _reload() =>
       setState(() => _future = Api.instance.lessons(widget.classId));
 
@@ -52,7 +60,8 @@ class _LessonsTabState extends State<LessonsTab>
         return ListView.builder(
           padding: const EdgeInsets.all(12),
           itemCount: lessons.length,
-          itemBuilder: (_, i) => _LessonCard(lesson: lessons[i]),
+          itemBuilder: (_, i) =>
+              _LessonCard(key: ValueKey(lessons[i].id), lesson: lessons[i]),
         );
       },
     );
@@ -61,13 +70,19 @@ class _LessonsTabState extends State<LessonsTab>
 
 class _LessonCard extends StatefulWidget {
   final Lesson lesson;
-  const _LessonCard({required this.lesson});
+  const _LessonCard({super.key, required this.lesson});
   @override
   State<_LessonCard> createState() => _LessonCardState();
 }
 
 class _LessonCardState extends State<_LessonCard> {
   Future<List<Content>>? _contents;
+
+  @override
+  void didUpdateWidget(covariant _LessonCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lesson.id != widget.lesson.id) _contents = null;
+  }
 
   void _loadOnce() {
     _contents ??= Api.instance.contents(widget.lesson.id);
@@ -96,15 +111,21 @@ class _LessonCardState extends State<_LessonCard> {
             if (open) setState(_loadOnce);
           },
           leading: CircleAvatar(
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-            child: Text('${widget.lesson.position + 1}',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600)),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.12),
+            child: Text(
+              '${widget.lesson.position + 1}',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          title: Text(widget.lesson.title,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Text(
+            widget.lesson.title,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
           childrenPadding: const EdgeInsets.only(bottom: 8),
           children: [
             FutureBuilder<List<Content>>(
@@ -116,6 +137,18 @@ class _LessonCardState extends State<_LessonCard> {
                     child: Center(child: CircularProgressIndicator()),
                   );
                 }
+                if (snap.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ErrorRetry(
+                      error: snap.error!,
+                      onRetry: () => setState(
+                        () =>
+                            _contents = Api.instance.contents(widget.lesson.id),
+                      ),
+                    ),
+                  );
+                }
                 final items = snap.data ?? [];
                 if (items.isEmpty) {
                   return const Padding(
@@ -125,18 +158,22 @@ class _LessonCardState extends State<_LessonCard> {
                 }
                 return Column(
                   children: items
-                      .map((c) => ListTile(
-                            leading: Icon(_iconFor(c.type)),
-                            title: Text(c.title),
-                            subtitle: Text(c.type.toUpperCase(),
-                                style: const TextStyle(fontSize: 11)),
-                            trailing: const Icon(Icons.chevron_right, size: 20),
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ContentViewer(content: c),
-                              ),
+                      .map(
+                        (c) => ListTile(
+                          leading: Icon(_iconFor(c.type)),
+                          title: Text(c.title),
+                          subtitle: Text(
+                            c.type.toUpperCase(),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          trailing: const Icon(Icons.chevron_right, size: 20),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ContentViewer(content: c),
                             ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 );
               },

@@ -32,19 +32,20 @@ class EmptyState extends StatelessWidget {
           children: [
             Icon(icon, size: 56, color: scheme.outline),
             const SizedBox(height: 16),
-            Text(title,
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             if (subtitle != null) ...[
               const SizedBox(height: 8),
-              Text(subtitle!,
-                  style: TextStyle(color: scheme.outline),
-                  textAlign: TextAlign.center),
+              Text(
+                subtitle!,
+                style: TextStyle(color: scheme.outline),
+                textAlign: TextAlign.center,
+              ),
             ],
-            if (action != null) ...[
-              const SizedBox(height: 20),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: 20), action!],
           ],
         ),
       ),
@@ -75,9 +76,14 @@ class Badge extends StatelessWidget {
             Icon(icon, size: 14, color: c),
             const SizedBox(width: 4),
           ],
-          Text(text,
-              style: TextStyle(
-                  color: c, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            text,
+            style: TextStyle(
+              color: c,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -88,10 +94,12 @@ class Badge extends StatelessWidget {
 void showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(error.toString()),
-      backgroundColor: Theme.of(context).colorScheme.error,
-    ));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(error.toString()),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
 }
 
 void showOk(BuildContext context, String message) {
@@ -115,9 +123,9 @@ class ErrorRetry extends StatelessWidget {
   const ErrorRetry({super.key, required this.error, required this.onRetry});
   @override
   Widget build(BuildContext context) => EmptyState(
-        icon: Icons.error_outline,
-        title: 'Something went wrong',
-        subtitle: error.toString(),
-        action: FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')),
-      );
+    icon: Icons.error_outline,
+    title: 'Something went wrong',
+    subtitle: error.toString(),
+    action: FilledButton.tonal(onPressed: onRetry, child: const Text('Retry')),
+  );
 }

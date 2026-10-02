@@ -13,12 +13,15 @@ class AuthProvider extends ChangeNotifier {
   final OmsApi _api;
 
   User? _user;
+  String? _demoExpiresAt;
   bool _loading = true; // true during the initial token restore
 
   User? get user => _user;
   bool get loading => _loading;
   bool get isAuthenticated => _user != null;
   bool get isTeacher => _user?.isTeacher ?? false;
+  bool get isDemo => _user?.email.endsWith('@demo.invalid') ?? false;
+  String? get demoExpiresAt => _demoExpiresAt;
 
   /// Restore a stored token on startup and validate it against the server.
   Future<void> bootstrap() async {
@@ -34,6 +37,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> login(String email, String password) async {
     _user = await _api.login(email, password);
+    _demoExpiresAt = null;
     notifyListeners();
   }
 
@@ -42,19 +46,39 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String role,
+    String? teacherInvite,
   }) async {
     _user = await _api.register(
       fullName: fullName,
       email: email,
       password: password,
       role: role,
+      teacherInvite: teacherInvite,
     );
+    _demoExpiresAt = null;
+    notifyListeners();
+  }
+
+  Future<void> updateProfile(String fullName) async {
+    _user = await _api.updateProfile(fullName);
+    notifyListeners();
+  }
+
+  Future<void> changePassword(String currentPassword, String newPassword) =>
+      _api.changePassword(currentPassword, newPassword);
+
+  Future<DemoAccess> createDemo() => _api.createDemo();
+
+  Future<void> loginDemo(DemoAccess access, String role) async {
+    _user = await _api.loginDemo(access, role);
+    _demoExpiresAt = access.expiresAt;
     notifyListeners();
   }
 
   Future<void> logout() async {
     await _api.logout();
     _user = null;
+    _demoExpiresAt = null;
     notifyListeners();
   }
 
@@ -64,6 +88,7 @@ class AuthProvider extends ChangeNotifier {
   void _handleUnauthorized() {
     if (_user == null) return;
     _user = null;
+    _demoExpiresAt = null;
     notifyListeners();
   }
 

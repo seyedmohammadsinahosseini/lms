@@ -24,22 +24,25 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('bootstrap with no stored token signs out without any request', () async {
-    var requests = 0;
-    final api = ApiClient(
-      httpClient: MockClient((_) async {
-        requests++;
-        return http.Response('{}', 200);
-      }),
-    );
-    final auth = AuthProvider(api: api);
+  test(
+    'bootstrap with no stored token signs out without any request',
+    () async {
+      var requests = 0;
+      final api = ApiClient(
+        httpClient: MockClient((_) async {
+          requests++;
+          return http.Response('{}', 200);
+        }),
+      );
+      final auth = AuthProvider(api: api);
 
-    await auth.bootstrap();
+      await auth.bootstrap();
 
-    expect(auth.loading, isFalse);
-    expect(auth.isAuthenticated, isFalse);
-    expect(requests, 0, reason: 'there is no token to validate');
-  });
+      expect(auth.loading, isFalse);
+      expect(auth.isAuthenticated, isFalse);
+      expect(requests, 0, reason: 'there is no token to validate');
+    },
+  );
 
   test('login exposes the user and their role', () async {
     final api = ApiClient(
@@ -79,23 +82,25 @@ void main() {
     expect(notified, 1, reason: 'AuthGate rebuilds back to the login screen');
   });
 
-  test('logout clears the session even when the call cannot reach the server',
-      () async {
-    final api = ApiClient(
-      httpClient: MockClient((request) async {
-        if (request.url.path.endsWith('login.php')) {
-          return http.Response(_loginBody(), 200);
-        }
-        throw http.ClientException('offline');
-      }),
-    );
-    final auth = AuthProvider(api: api);
-    await auth.login('user@otms.test', 'password');
+  test(
+    'logout clears the session even when the call cannot reach the server',
+    () async {
+      final api = ApiClient(
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('login.php')) {
+            return http.Response(_loginBody(), 200);
+          }
+          throw http.ClientException('offline');
+        }),
+      );
+      final auth = AuthProvider(api: api);
+      await auth.login('user@otms.test', 'password');
 
-    await auth.logout();
+      await auth.logout();
 
-    expect(auth.isAuthenticated, isFalse);
-  });
+      expect(auth.isAuthenticated, isFalse);
+    },
+  );
 
   test('dispose unhooks the unauthorized callback', () async {
     final api = ApiClient(

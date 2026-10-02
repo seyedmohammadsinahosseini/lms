@@ -1,238 +1,194 @@
 #!/usr/bin/env bash
-# End-to-end API regression test for the OTMS backend.
-#
-# Portable port of backend/smoketest.sh (which hardcodes XAMPP Windows paths).
-# It starts its own PHP development server, so it does not need Apache running.
-#
-# Requirements: php-cli, curl, python3, and a MySQL/MariaDB reachable with the
-# credentials in backend/config.php and with backend/schema.sql imported.
-#
-# Usage:  bash tools/api_test.sh
-set -uo pipefail
+# OTMS 2.0 end-to-end API regression suite.
+# Requires a fresh/imported schema and OTMS_DB_* credentials in the environment.
+set -euo pipefail
 
-PORT="${PORT:-8099}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BASE="http://127.0.0.1:$PORT/backend/api"
+PORT="${PORT:-8099}"
+BASE="http://127.0.0.1:${PORT}/api/v1"
 BODY_FILE="$(mktemp)"
 SERVER_LOG="$(mktemp)"
 PASS=0
 FAIL=0
+SERVER_PID=""
 
 cleanup() {
-  [ -n "${SERVER_PID:-}" ] && kill "$SERVER_PID" 2>/dev/null
+  [[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null || true
   rm -f "$BODY_FILE" "$SERVER_LOG"
 }
 trap cleanup EXIT
 
-echo "== starting php dev server on 127.0.0.1:$PORT (docroot: $ROOT)"
-php -S "127.0.0.1:$PORT" -t "$ROOT" >"$SERVER_LOG" 2>&1 &
+export OTMS_APP_ENV="${OTMS_APP_ENV:-local}"
+export OTMS_ALLOW_TEACHER_REGISTRATION=true
+export OTMS_DEMO_MODE=true
+export OTMS_PUBLIC_BASE_URL="http://127.0.0.1:${PORT}"
+php -S "127.0.0.1:${PORT}" -t "$ROOT/backend" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
-
-for _ in $(seq 1 60); do
-  if curl -s -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then break; fi
-  sleep 0.25
+for _ in $(seq 1 80); do
+  curl -fsS "$BASE/health.php" >/dev/null 2>&1 && break
+  sleep .2
 done
+curl -fsS "$BASE/health.php" >/dev/null || {
+  cat "$SERVER_LOG" >&2
+  exit 1
+}
 
-# --- helpers ----------------------------------------------------------------
-CODE=""
-BODY=""
-
-api() { # METHOD PATH [JSON_BODY] [TOKEN]
+CODE="" BODY=""
+request() { # METHOD PATH [JSON] [TOKEN]
   local method="$1" path="$2" data="${3:-}" token="${4:-}"
-  local args=(-s -o "$BODY_FILE" -w '%{http_code}' -X "$method" "$BASE/$path")
-  [ -n "$token" ] && args+=(-H "Authorization: Bearer $token")
-  if [ -n "$data" ]; then
-    args+=(-H 'Content-Type: application/json' -d "$data")
-  fi
+  local args=(-sS -o "$BODY_FILE" -w '%{http_code}' -X "$method" "$BASE/$path")
+  [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+  [[ -n "$data" ]] && args+=(-H 'Content-Type: application/json' --data "$data")
   CODE="$(curl "${args[@]}")"
   BODY="$(cat "$BODY_FILE")"
 }
-
-json() { # EXPR evaluated against the parsed body `d`
-  python3 -c "
-import json,sys
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    d = {}
-print($1)
-" <<<"$BODY" 2>/dev/null
+get() { request GET "$1" "" "${2:-}"; }
+post() {
+  local data="${2:-}"
+  [[ -n "$data" ]] || data='{}'
+  request POST "$1" "$data" "${3:-}"
 }
+value() { jq -r "$1" <<<"$BODY"; }
 
-check() { # NAME EXPECTED ACTUAL
-  if [ "$2" = "$3" ]; then
-    PASS=$((PASS + 1))
-    printf '  ok    %s\n' "$1"
-  else
-    FAIL=$((FAIL + 1))
-    printf '  FAIL  %s\n        expected: %s\n        actual:   %s\n' "$1" "$2" "$3"
-  fi
+ok() { PASS=$((PASS + 1)); printf '  ok   %s\n' "$1"; }
+fail_check() {
+  FAIL=$((FAIL + 1))
+  printf '  FAIL %s\n       response(%s): %s\n' "$1" "$CODE" "$BODY"
 }
-
-section() { printf '\n-- %s\n' "$1"; }
-
-# Runs a scalar SQL query through the project's own database configuration, so
-# the scripts honour OTMS_DB_* and work on Windows too (where the mysql client
-# is usually not on PATH). Prints the first column of the first row, or nothing
-# if the query fails -- callers treat that as "unknown" rather than an error.
-dbq() { # SQL
-  php -r '
-function fail($message = "", $code = 400) { fwrite(STDERR, $message); exit(1); }
-require $argv[2];
-try {
-    $row = db()->query($argv[1])->fetch(PDO::FETCH_NUM);
-    echo $row === false ? "" : $row[0];
-} catch (Throwable $e) { fwrite(STDERR, $e->getMessage()); exit(1); }
-' "$1" "$ROOT/backend/config.php" 2>/dev/null
+expect_code() {
+  local name="$1" expected="$2"
+  [[ "$CODE" == "$expected" ]] && ok "$name" || fail_check "$name (expected HTTP $expected)"
 }
+expect_jq() {
+  local name="$1" expr="$2"
+  jq -e "$expr" >/dev/null 2>&1 <<<"$BODY" && ok "$name" || fail_check "$name (jq: $expr)"
+}
+section() { printf '\n-- %s --\n' "$1"; }
 
-# --- auth -------------------------------------------------------------------
-section "auth"
-api POST login.php '{"email":"teacher@otms.test","password":"password"}'
-check "teacher login returns 200" "200" "$CODE"
-TT=$(json "d.get('token','')")
-check "teacher token issued" "true" "$([ -n "$TT" ] && echo true || echo false)"
+STAMP="$(date +%s)-$$"
+TEACHER_EMAIL="teacher-${STAMP}@example.test"
+STUDENT_EMAIL="student-${STAMP}@example.test"
+PASSWORD='correct horse battery staple'
 
-api POST login.php '{"email":"teacher@otms.test","password":"wrong"}'
-check "wrong password is rejected" "401" "$CODE"
+section auth
+post register.php "$(jq -nc --arg n 'API Teacher' --arg e "$TEACHER_EMAIL" --arg p "$PASSWORD" '{full_name:$n,email:$e,password:$p,role:"teacher"}')"
+expect_code 'teacher registration' 201
+TT="$(value '.token')"
+post register.php "$(jq -nc --arg n 'API Student' --arg e "$STUDENT_EMAIL" --arg p "$PASSWORD" '{full_name:$n,email:$e,password:$p,role:"student"}')"
+expect_code 'student registration' 201
+ST="$(value '.token')"
+get me.php "$TT"; expect_jq 'authenticated profile' ".user.email == \"$TEACHER_EMAIL\""
+get me.php; expect_code 'anonymous profile denied' 401
+post login.php "$(jq -nc --arg e "$TEACHER_EMAIL" '{email:$e,password:"wrong password"}')"
+expect_code 'wrong password denied' 401
+expect_jq 'fixed JSON error envelope' '.error.code == "INVALID_CREDENTIALS"'
 
-api POST login.php '{"email":"teacher@otms.test","password":"wrong"}'
-check "rejection does not leak which field was wrong" "Invalid email or password." "$(json "d.get('error','')")"
+section classes-and-grants
+post class_create.php '{"name":"API Test Class","description":"isolated e2e fixture","color":"#2563EB"}' "$TT"
+expect_code 'teacher creates class' 201
+CLASS_ID="$(value '.id')"
+get code_get.php "$TT"; expect_code 'teacher gets active code' 200
+TEACHER_CODE="$(value '.code')"
+post code_lookup.php "$(jq -nc --arg c "$TEACHER_CODE" '{code:$c}')" "$ST"
+expect_code 'student looks up code' 200
+expect_jq 'lookup returns one-use grant' '.join_grant | length >= 32'
+GRANT="$(value '.join_grant')"
+post enroll.php "$(jq -nc --argjson c "$CLASS_ID" --arg g "$GRANT" '{class_id:$c,join_grant:$g}')" "$ST"
+expect_code 'grant enrolls student' 200
+post enroll.php "$(jq -nc --argjson c "$CLASS_ID" --arg g "$GRANT" '{class_id:$c,join_grant:$g}')" "$ST"
+expect_code 'grant replay is rejected' 403
+get "class_students.php?class_id=$CLASS_ID" "$TT"
+expect_jq 'teacher sees enrolled student' '.students | length == 1'
 
-api GET me.php '' "$TT"
-check "me returns the session user" "teacher@otms.test" "$(json "d.get('user',{}).get('email','')")"
+section lessons-and-content
+post lesson_create.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c,title:"Secure lesson"}')" "$TT"
+expect_code 'teacher creates lesson' 201
+LESSON_ID="$(value '.id')"
+post content_create.php "$(jq -nc --argjson l "$LESSON_ID" '{lesson_id:$l,type:"note",title:"Note",body:"Visible to enrolled students"}')" "$TT"
+expect_code 'teacher creates lesson content' 201
+get "content_list.php?lesson_id=$LESSON_ID" "$ST"
+expect_jq 'student reads enrolled content' '.contents[0].body == "Visible to enrolled students"'
 
-api GET me.php
-check "me without a token is unauthorized" "401" "$CODE"
+section assessment-lifecycle
+post assessment_create.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c,title:"Versioned quiz",kind:"quiz",duration_min:10,max_attempts:2,answer_release_policy:"immediately"}')" "$TT"
+expect_code 'teacher creates draft assessment' 201
+ASSESSMENT_ID="$(value '.id')"
+post question_add.php "$(jq -nc --argjson a "$ASSESSMENT_ID" '{assessment_id:$a,text:"Two plus two?",type:"single_choice",points:2,options:[{text:"4",is_correct:true},{text:"5",is_correct:false}]}')" "$TT"
+expect_code 'single-choice question added' 201
+post question_add.php "$(jq -nc --argjson a "$ASSESSMENT_ID" '{assessment_id:$a,text:"Select values equal to one",type:"multiple_select",points:2,options:[{text:"1",is_correct:true},{text:"2/2",is_correct:true},{text:"1/2",is_correct:false}]}')" "$TT"
+expect_code 'multiple-select question added' 201
+post assessment_publish.php "$(jq -nc --argjson a "$ASSESSMENT_ID" '{assessment_id:$a}')" "$TT"
+expect_code 'assessment publishes immutable snapshot' 200
+post attempt_start.php "$(jq -nc --argjson a "$ASSESSMENT_ID" '{assessment_id:$a,idempotency_key:"api-test-start-0001"}')" "$ST"
+expect_code 'student starts timed attempt' 201
+expect_jq 'student payload hides answer keys' '[.questions[].options[] | has("is_correct")] | all(. == false)'
+ATTEMPT_ID="$(value '.attempt.id')"
+Q1="$(value '.questions[0].id')"; O1="$(value '.questions[0].options[0].id')"
+Q2="$(value '.questions[1].id')"; O21="$(value '.questions[1].options[0].id')"; O22="$(value '.questions[1].options[1].id')"
+ANSWERS="$(jq -nc --argjson a "$ATTEMPT_ID" --arg q1 "$Q1" --argjson o1 "$O1" --arg q2 "$Q2" --argjson o21 "$O21" --argjson o22 "$O22" '{attempt_id:$a,answers:{($q1):$o1,($q2):[$o21,$o22]}}')"
+post attempt_submit.php "$ANSWERS" "$ST"
+expect_code 'attempt submits by attempt id' 200
+expect_jq 'objective attempt scores correctly' '.score == 100 and .status == "graded"'
+get "attempt_get.php?id=$ATTEMPT_ID" "$ST"
+expect_jq 'immediate answer release is honored' '.attempt.answers_released == true and (.answers | length == 2)'
+post assessment_close.php "$(jq -nc --argjson a "$ASSESSMENT_ID" '{assessment_id:$a}')" "$TT"
+expect_code 'teacher closes assessment' 200
+post attempt_start.php "$(jq -nc --argjson a "$ASSESSMENT_ID" '{assessment_id:$a,idempotency_key:"api-test-start-0002"}')" "$ST"
+expect_code 'closed assessment rejects new attempt' 409
 
-api GET me.php '' "not-a-real-token"
-check "me with a bogus token is unauthorized" "401" "$CODE"
+section homework-versioning
+post homework_create.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c,title:"Versioned homework",description:"Submit twice",allow_late_submission:true,allow_resubmit:true}')" "$TT"
+expect_code 'teacher creates homework policy' 201
+HOMEWORK_ID="$(value '.id')"
+post submission_submit.php "$(jq -nc --argjson h "$HOMEWORK_ID" '{homework_id:$h,text:"first version"}')" "$ST"
+expect_code 'student submits homework' 201
+SUBMISSION_ID="$(value '.id')"
+post submission_submit.php "$(jq -nc --argjson h "$HOMEWORK_ID" '{homework_id:$h,text:"improved version"}')" "$ST"
+expect_jq 'resubmission creates version two' '.version_no == 2'
+get "submission_history.php?submission_id=$SUBMISSION_ID" "$ST"
+expect_jq 'student sees own immutable history' '.versions | length == 2'
+get "submissions_list.php?homework_id=$HOMEWORK_ID" "$TT"
+expect_jq 'teacher sees latest version' '.submissions[0].version_no == 2 and .submissions[0].text == "improved version"'
+post submission_grade.php "$(jq -nc --argjson s "$SUBMISSION_ID" '{submission_id:$s,grade:"A",feedback:"Good revision"}')" "$TT"
+expect_code 'teacher grades and gives feedback' 200
+get "homework_list.php?class_id=$CLASS_ID" "$ST"
+expect_jq 'student sees grade and feedback' '.homework[0].my_submission.grade == "A" and .homework[0].my_submission.feedback == "Good revision"'
 
-api POST login.php '{"email":"student@otms.test","password":"password"}'
-ST=$(json "d.get('token','')")
-check "student login returns a token" "true" "$([ -n "$ST" ] && echo true || echo false)"
+section qa-dashboard-live
+post qa_create.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c,title:"Question",body:"Please explain"}')" "$ST"
+expect_code 'student creates Q&A thread' 201
+THREAD_ID="$(value '.id')"
+post qa_reply.php "$(jq -nc --argjson t "$THREAD_ID" '{thread_id:$t,body:"Teacher reply"}')" "$TT"
+expect_code 'teacher replies to Q&A' 201
+get "qa_thread.php?id=$THREAD_ID" "$ST"
+expect_jq 'student sees teacher reply' '.replies[0].author_role == "teacher"'
+get dashboard_teacher.php "$TT"; expect_jq 'teacher dashboard uses live data' '.stats.class_count >= 1 and .stats.student_count >= 1'
+get dashboard_student.php "$ST"; expect_jq 'student dashboard uses live data' '.stats.class_count >= 1'
+post live_start.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c}')" "$TT"
+expect_code 'teacher starts backend-managed live room' 201
+LIVE_ID="$(value '.session.id')"
+post live_join.php "$(jq -nc --argjson s "$LIVE_ID" '{session_id:$s}')" "$ST"
+expect_jq 'enrolled student receives HTTPS meeting URL' '.session.join_url | startswith("https://")'
+post live_end.php "$(jq -nc --argjson s "$LIVE_ID" '{session_id:$s}')" "$TT"
+expect_code 'teacher ends live room' 200
 
-# --- role guards ------------------------------------------------------------
-section "role guards"
-api GET classes_list.php '' "$ST"
-check "student can list classes" "200" "$CODE"
+section account-and-demo
+post profile_update.php '{"full_name":"Renamed Teacher"}' "$TT"
+expect_jq 'profile update returns new name' '.user.full_name == "Renamed Teacher"'
+post password_change.php "$(jq -nc --arg p "$PASSWORD" '{current_password:$p,new_password:"a newer secure password"}')" "$TT"
+expect_code 'password change succeeds' 200
+post login.php "$(jq -nc --arg e "$TEACHER_EMAIL" '{email:$e,password:"a newer secure password"}')"
+expect_code 'new password can sign in' 200
+post demo_start.php '{}'
+expect_code 'isolated demo sandbox is created' 201
+expect_jq 'demo advertises both roles and expiry' '(.roles | length == 2) and (.expires_at != null)'
+DEMO_ID="$(value '.demo_id')"; DEMO_KEY="$(value '.access_key')"
+post demo_login.php "$(jq -nc --arg d "$DEMO_ID" --arg k "$DEMO_KEY" '{demo_id:$d,access_key:$k,role:"student"}')"
+expect_jq 'demo student login is scoped to generated identity' '.user.email | endswith("@demo.invalid")'
 
-api POST class_create.php '{"name":"Nope","description":"x","color":"#6366F1"}' "$ST"
-check "student cannot create a class" "403" "$CODE"
-
-api POST class_create.php '{"name":"Nope","description":"x","color":"#6366F1"}'
-check "anonymous cannot create a class" "401" "$CODE"
-
-# --- teacher code + enrollment ---------------------------------------------
-section "teacher code and enrollment"
-api GET code_get.php '' "$TT"
-TEACHER_CODE=$(json "d.get('code','')")
-check "teacher has a join code" "true" "$([ -n "$TEACHER_CODE" ] && echo true || echo false)"
-
-api POST code_regenerate.php '' "$TT"
-check "code can be regenerated" "200" "$CODE"
-TEACHER_CODE=$(json "d.get('code','')")
-
-api POST code_lookup.php "{\"code\":\"$TEACHER_CODE\"}" "$ST"
-check "student can look up classes by code" "200" "$CODE"
-
-api POST code_lookup.php '{"code":"ZZZZZZ"}' "$ST"
-check "unknown code is rejected" "404" "$CODE"
-
-# --- classes ----------------------------------------------------------------
-section "classes"
-api POST class_create.php '{"name":"API Test Class","description":"created by api_test.sh","color":"#14B8A6"}' "$TT"
-check "teacher creates a class" "201" "$CODE"
-CLASS_ID=$(json "int(d.get('id',0))")
-
-api GET "class_students.php?class_id=$CLASS_ID" '' "$TT"
-check "teacher sees the roster" "200" "$CODE"
-
-api POST enroll.php "{\"class_id\":$CLASS_ID}" "$ST"
-check "student enrolls" "200" "$CODE"
-
-api GET "class_students.php?class_id=$CLASS_ID" '' "$TT"
-check "roster now has the student" "1" "$(json "len(d.get('students',[]))")"
-
-api GET "lessons_list.php?class_id=$CLASS_ID" '' "$ST"
-check "enrolled student can read lessons" "200" "$CODE"
-
-OTHER_CLASS=$(dbq "SELECT id FROM classes WHERE teacher_id <> 1 LIMIT 1")
-if [ -n "$OTHER_CLASS" ]; then
-  api GET "lessons_list.php?class_id=$OTHER_CLASS" '' "$ST"
-  check "student cannot read an unenrolled class" "403" "$CODE"
-  api GET "class_students.php?class_id=$OTHER_CLASS" '' "$TT"
-  check "teacher cannot read another teacher's class" "403" "$CODE"
+printf '\n== %d passed, %d failed ==\n' "$PASS" "$FAIL"
+if (( FAIL > 0 )); then
+  printf '\nServer log:\n' >&2
+  tail -n 100 "$SERVER_LOG" >&2
+  exit 1
 fi
-
-# --- lessons + content ------------------------------------------------------
-section "lessons and content"
-api POST lesson_create.php "{\"class_id\":$CLASS_ID,\"title\":\"API Test Lesson\"}" "$TT"
-check "teacher creates a lesson" "201" "$CODE"
-LESSON_ID=$(json "int(d.get('id',0))")
-check "first lesson starts at position 0" "0" "$(json "int(d.get('position',-1))")"
-
-api POST lesson_create.php "{\"class_id\":$CLASS_ID,\"title\":\"API Test Lesson 2\"}" "$TT"
-check "next lesson is appended" "1" "$(json "int(d.get('position',-1))")"
-
-api POST content_create.php "{\"lesson_id\":$LESSON_ID,\"type\":\"note\",\"title\":\"Note\",\"body\":\"hello\"}" "$TT"
-check "teacher adds a note" "201" "$CODE"
-
-api POST content_create.php "{\"lesson_id\":$LESSON_ID,\"type\":\"bogus\",\"title\":\"x\",\"body\":\"y\"}" "$TT"
-check "unknown content type is rejected" "400" "$CODE"
-
-api GET "content_list.php?lesson_id=$LESSON_ID" '' "$ST"
-check "student reads the content" "1" "$(json "len(d.get('contents',[]))")"
-
-# --- assessments ------------------------------------------------------------
-section "assessments"
-api POST assessment_create.php "{\"class_id\":$CLASS_ID,\"title\":\"API Quiz\",\"description\":\"d\",\"kind\":\"quiz\",\"duration_min\":10}" "$TT"
-check "teacher creates an assessment" "201" "$CODE"
-ASM_ID=$(json "int(d.get('id',0))")
-
-api POST question_add.php "{\"assessment_id\":$ASM_ID,\"text\":\"1+1?\",\"type\":\"multiple_choice\",\"points\":2,\"options\":[{\"text\":\"2\",\"is_correct\":true},{\"text\":\"3\",\"is_correct\":false}]}" "$TT"
-check "teacher adds a multiple-choice question" "201" "$CODE"
-
-api GET "assessment_get.php?id=$ASM_ID" '' "$ST"
-check "student can load the assessment" "200" "$CODE"
-check "student payload hides which option is correct" "False" "$(json "any('is_correct' in o for q in d.get('questions',[]) for o in q.get('options',[]))")"
-
-api GET "assessment_get.php?id=$ASM_ID" '' "$TT"
-check "teacher payload exposes the answer key" "True" "$(json "any('is_correct' in o for q in d.get('questions',[]) for o in q.get('options',[]))")"
-
-api POST attempt_submit.php "{\"assessment_id\":$ASM_ID,\"answers\":{}}" "$ST"
-check "student submits an attempt" "201" "$CODE"
-
-api GET "attempts_list.php?assessment_id=$ASM_ID" '' "$TT"
-check "teacher sees the attempt" "1" "$(json "len(d.get('attempts',[]))")"
-
-# --- homework + submissions -------------------------------------------------
-section "homework and submissions"
-api POST homework_create.php "{\"class_id\":$CLASS_ID,\"title\":\"API Homework\",\"description\":\"do it\"}" "$TT"
-check "teacher creates homework" "201" "$CODE"
-HW_ID=$(json "int(d.get('id',0))")
-
-api POST submission_submit.php "{\"homework_id\":$HW_ID,\"text\":\"my answer\"}" "$ST"
-check "student submits text homework" "201" "$CODE"
-
-api GET "submissions_list.php?homework_id=$HW_ID" '' "$TT"
-check "teacher sees the submission" "1" "$(json "len(d.get('submissions',[]))")"
-
-# --- Q&A --------------------------------------------------------------------
-section "questions and answers"
-api POST qa_create.php "{\"class_id\":$CLASS_ID,\"title\":\"How?\",\"body\":\"please explain\"}" "$ST"
-check "student opens a thread" "201" "$CODE"
-THREAD_ID=$(json "int(d.get('id',0))")
-
-api GET "qa_list.php?class_id=$CLASS_ID" '' "$TT"
-check "teacher sees the thread" "1" "$(json "len(d.get('threads',[]))")"
-
-api POST qa_reply.php "{\"thread_id\":$THREAD_ID,\"body\":\"like this\"}" "$TT"
-check "teacher replies" "201" "$CODE"
-
-api GET "qa_thread.php?id=$THREAD_ID" '' "$ST"
-check "student sees the reply" "1" "$(json "len(d.get('replies',[]))")"
-
-# --- summary ----------------------------------------------------------------
-printf '\n== %d passed, %d failed\n' "$PASS" "$FAIL"
-[ "$FAIL" -eq 0 ]

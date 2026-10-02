@@ -1,0 +1,6 @@
+# Keep generated Windows launchers usable while storing normalized text in Git.
+*.bat text eol=crlf
+*.sh text eol=lf
+*.php text eol=lf
+*.dart text eol=lf
+*.md text eol=lf

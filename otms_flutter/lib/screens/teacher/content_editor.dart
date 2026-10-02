@@ -33,8 +33,12 @@ class _ContentEditorState extends State<ContentEditor> {
   bool get _isVideo => _type == 'video';
 
   Future<void> _pickFile() async {
-    final f = await pickAnyFile();
-    if (f != null) setState(() => _file = f);
+    try {
+      final file = await pickAnyFile();
+      if (file != null && mounted) setState(() => _file = file);
+    } catch (error) {
+      if (mounted) showError(context, error);
+    }
   }
 
   Future<void> _save() async {
@@ -80,17 +84,20 @@ class _ContentEditorState extends State<ContentEditor> {
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(
-                  value: 'note',
-                  label: Text('Note'),
-                  icon: Icon(Icons.description_outlined)),
+                value: 'note',
+                label: Text('Note'),
+                icon: Icon(Icons.description_outlined),
+              ),
               ButtonSegment(
-                  value: 'booklet',
-                  label: Text('Booklet'),
-                  icon: Icon(Icons.book_outlined)),
+                value: 'booklet',
+                label: Text('Booklet'),
+                icon: Icon(Icons.book_outlined),
+              ),
               ButtonSegment(
-                  value: 'video',
-                  label: Text('Video'),
-                  icon: Icon(Icons.play_circle_outline)),
+                value: 'video',
+                label: Text('Video'),
+                icon: Icon(Icons.play_circle_outline),
+              ),
             ],
             selected: {_type},
             onSelectionChanged: (s) => setState(() => _type = s.first),
@@ -144,7 +151,10 @@ class _ContentEditorState extends State<ContentEditor> {
                       height: 22,
                       width: 22,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Save content'),
             ),
           ),

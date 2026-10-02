@@ -9,7 +9,8 @@ import '../qa_thread_screen.dart';
 /// answer from the same thread view. Shared by both roles.
 class QaTab extends StatefulWidget {
   final int classId;
-  const QaTab({super.key, required this.classId});
+  final bool canAsk;
+  const QaTab({super.key, required this.classId, this.canAsk = true});
   @override
   State<QaTab> createState() => _QaTabState();
 }
@@ -26,13 +27,21 @@ class _QaTabState extends State<QaTab> with AutomaticKeepAliveClientMixin {
     _future = Api.instance.qaThreads(widget.classId);
   }
 
+  @override
+  void didUpdateWidget(covariant QaTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.qaThreads(widget.classId);
+    }
+  }
+
   void _reload() =>
       setState(() => _future = Api.instance.qaThreads(widget.classId));
 
   Future<void> _open(int threadId) async {
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => QaThreadScreen(threadId: threadId),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => QaThreadScreen(threadId: threadId)),
+    );
     _reload(); // reply count may have changed
   }
 
@@ -63,7 +72,7 @@ class _QaTabState extends State<QaTab> with AutomaticKeepAliveClientMixin {
             return const EmptyState(
               icon: Icons.forum_outlined,
               title: 'No questions yet',
-              subtitle: 'Be the first to ask something.',
+              subtitle: 'Questions and teacher replies will appear here.',
             );
           }
           return ListView.separated(
@@ -74,33 +83,41 @@ class _QaTabState extends State<QaTab> with AutomaticKeepAliveClientMixin {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'student-qa-fab',
-        onPressed: _ask,
-        icon: const Icon(Icons.add_comment_outlined),
-        label: const Text('Ask'),
-      ),
+      floatingActionButton: widget.canAsk
+          ? FloatingActionButton.extended(
+              heroTag: 'student-qa-fab-${widget.classId}',
+              onPressed: _ask,
+              icon: const Icon(Icons.add_comment_outlined),
+              label: const Text('Ask'),
+            )
+          : null,
     );
   }
 
   Widget _card(QaThread t) {
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        title: Text(t.title,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        title: Text(
+          t.title,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Row(
             children: [
-              Text('by ${t.authorName}',
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.outline,
-                      fontSize: 12)),
+              Text(
+                'by ${t.authorName}',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.outline,
+                  fontSize: 12,
+                ),
+              ),
               const SizedBox(width: 10),
-              Badge('${t.replyCount} repl${t.replyCount == 1 ? 'y' : 'ies'}',
-                  icon: Icons.chat_bubble_outline),
+              Badge(
+                '${t.replyCount} repl${t.replyCount == 1 ? 'y' : 'ies'}',
+                icon: Icons.chat_bubble_outline,
+              ),
             ],
           ),
         ),
@@ -137,8 +154,11 @@ class _AskSheetState extends State<_AskSheet> {
     }
     setState(() => _busy = true);
     try {
-      await Api.instance
-          .createThread(widget.classId, _title.text.trim(), _body.text.trim());
+      await Api.instance.createThread(
+        widget.classId,
+        _title.text.trim(),
+        _body.text.trim(),
+      );
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
@@ -157,8 +177,10 @@ class _AskSheetState extends State<_AskSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Ask a question',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text(
+            'Ask a question',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _title,
@@ -188,7 +210,10 @@ class _AskSheetState extends State<_AskSheet> {
                       height: 22,
                       width: 22,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Post question'),
             ),
           ),

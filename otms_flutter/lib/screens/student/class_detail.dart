@@ -39,7 +39,7 @@ class ClassDetail extends StatelessWidget {
             AssessmentsTab(classId: cls.id),
             HomeworkTab(classId: cls.id),
             QaTab(classId: cls.id),
-            _LiveTab(className: cls.name),
+            _LiveTab(classId: cls.id, className: cls.name),
           ],
         ),
       ),
@@ -48,22 +48,24 @@ class ClassDetail extends StatelessWidget {
 }
 
 class _LiveTab extends StatelessWidget {
+  final int classId;
   final String className;
-  const _LiveTab({required this.className});
+  const _LiveTab({required this.classId, required this.className});
   @override
   Widget build(BuildContext context) {
     return EmptyState(
       icon: Icons.podcasts,
       title: 'Live session',
-      subtitle: 'Join a demo live classroom for this subject.',
+      subtitle: 'Join the current protected live classroom.',
       action: FilledButton.icon(
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => LiveDemoScreen(className: className),
+            builder: (_) =>
+                LiveDemoScreen(classId: classId, className: className),
           ),
         ),
         icon: const Icon(Icons.videocam),
-        label: const Text('Join live (demo)'),
+        label: const Text('Open live classroom'),
       ),
     );
   }

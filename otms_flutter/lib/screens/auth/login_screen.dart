@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController(text: '');
   final _password = TextEditingController(text: '');
   bool _submitting = false;
+  String? _demoRole;
   bool _obscure = true;
 
   @override
@@ -30,14 +31,28 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);
     try {
-      await context
-          .read<AuthProvider>()
-          .login(_email.text.trim(), _password.text);
+      await context.read<AuthProvider>().login(
+        _email.text.trim(),
+        _password.text,
+      );
       // AuthGate rebuilds automatically on success.
     } catch (e) {
       if (mounted) showError(context, e);
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _startDemo(String role) async {
+    setState(() => _demoRole = role);
+    try {
+      final auth = context.read<AuthProvider>();
+      final access = await auth.createDemo();
+      await auth.loginDemo(access, role);
+    } catch (error) {
+      if (mounted) showError(context, error);
+    } finally {
+      if (mounted) setState(() => _demoRole = null);
     }
   }
 
@@ -59,9 +74,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       tooltip: 'Toggle theme',
-                      icon: Icon(theme.isDark
-                          ? Icons.light_mode_outlined
-                          : Icons.dark_mode_outlined),
+                      icon: Icon(
+                        theme.isDark
+                            ? Icons.light_mode_outlined
+                            : Icons.dark_mode_outlined,
+                      ),
                       onPressed: () => theme.toggle(),
                     ),
                   ),
@@ -73,16 +90,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: scheme.primary,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Icon(Icons.school_rounded,
-                        color: Colors.white, size: 34),
+                    child: const Icon(
+                      Icons.school_rounded,
+                      color: Colors.white,
+                      size: 34,
+                    ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Welcome back',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700)),
+                  Text(
+                    'Welcome back',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Sign in to your OTMS account',
-                      style: TextStyle(color: scheme.outline)),
+                  Text(
+                    'Sign in to your OTMS account',
+                    style: TextStyle(color: scheme.outline),
+                  ),
                   const SizedBox(height: 28),
                   Form(
                     key: _formKey,
@@ -108,9 +133,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             labelText: 'Password',
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
+                              icon: Icon(
+                                _obscure
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                              ),
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),
@@ -128,7 +155,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   height: 22,
                                   width: 22,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
                               : const Text('Sign in'),
                         ),
                       ],
@@ -138,19 +168,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text("New here?",
-                          style: TextStyle(color: scheme.outline)),
+                      Text(
+                        "New here?",
+                        style: TextStyle(color: scheme.outline),
+                      ),
                       TextButton(
                         onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(
-                              builder: (_) => const RegisterFlow()),
+                            builder: (_) => const RegisterFlow(),
+                          ),
                         ),
                         child: const Text('Create an account'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _DemoHint(),
+                  _DemoEntry(busyRole: _demoRole, onStart: _startDemo),
                 ],
               ),
             ),
@@ -161,8 +194,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// Small helper card listing the seeded demo credentials.
-class _DemoHint extends StatelessWidget {
+class _DemoEntry extends StatelessWidget {
+  final String? busyRole;
+  final ValueChanged<String> onStart;
+  const _DemoEntry({required this.busyRole, required this.onStart});
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -173,16 +209,49 @@ class _DemoHint extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Demo accounts',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: scheme.onSurface)),
-          const SizedBox(height: 6),
-          Text('teacher@otms.test · password',
-              style: TextStyle(fontSize: 13, color: scheme.outline)),
-          Text('student@otms.test · password',
-              style: TextStyle(fontSize: 13, color: scheme.outline)),
+          Text(
+            'Try the portfolio demo',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'No account needed. Each isolated sandbox expires after two hours.',
+            style: TextStyle(fontSize: 13, color: scheme.outline),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              OutlinedButton.icon(
+                onPressed: busyRole == null ? () => onStart('student') : null,
+                icon: busyRole == 'student'
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.school_outlined),
+                label: const Text('Student demo'),
+              ),
+              OutlinedButton.icon(
+                onPressed: busyRole == null ? () => onStart('teacher') : null,
+                icon: busyRole == 'teacher'
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.co_present_outlined),
+                label: const Text('Teacher demo'),
+              ),
+            ],
+          ),
         ],
       ),
     );
