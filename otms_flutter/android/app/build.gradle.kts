@@ -1,5 +1,7 @@
+import com.android.build.api.dsl.ApplicationExtension
 import java.io.FileInputStream
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -15,7 +17,7 @@ if (keyPropertiesFile.exists()) {
 val hasReleaseSigning = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     .all { !keyProperties.getProperty(it).isNullOrBlank() }
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "app.otms.portfolio"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -23,10 +25,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
@@ -51,12 +49,18 @@ android {
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             // Never fall back to the debug certificate for a release artifact.
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
