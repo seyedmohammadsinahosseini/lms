@@ -12,14 +12,14 @@ import 'package:otms_flutter/services/api_client.dart';
 
 /// A login response the client understands.
 String _loginBody({String token = 'tok-1'}) => jsonEncode({
-      'token': token,
-      'user': {
-        'id': 7,
-        'full_name': 'Test Teacher',
-        'email': 'teacher@otms.test',
-        'role': 'teacher',
-      },
-    });
+  'token': token,
+  'user': {
+    'id': 7,
+    'full_name': 'Test Teacher',
+    'email': 'teacher@otms.test',
+    'role': 'teacher',
+  },
+});
 
 /// Builds an [ApiClient] backed by [handler], recording every request it makes
 /// so tests can assert on retries, headers and payloads.
@@ -44,8 +44,8 @@ void main() {
     tearDown(() => debugDefaultTargetPlatformOverride = null);
 
     test('resolves the API base from the configured backend path', () {
-      expect(Env.apiBaseUrl, endsWith('/OTMS1/backend'));
-      expect(Env.apiBase, endsWith('/OTMS1/backend/api'));
+      expect(Env.apiBaseUrl, endsWith('/OTMS1/backend/api/v1'));
+      expect(Env.apiBase, endsWith('/OTMS1/backend/api/v1'));
     });
 
     test('uses the emulator alias for the host on Android', () {
@@ -75,8 +75,11 @@ void main() {
       await api.classes();
 
       expect(log, hasLength(2));
-      expect(log.first.headers['Authorization'], isNull,
-          reason: 'the login request itself carries no token');
+      expect(
+        log.first.headers['Authorization'],
+        isNull,
+        reason: 'the login request itself carries no token',
+      );
       expect(log.last.headers['Authorization'], 'Bearer tok-1');
     });
 
@@ -100,23 +103,31 @@ void main() {
 
       await expectLater(
         api.classes(),
-        throwsA(isA<ApiException>()
-            .having((e) => e.status, 'status', 500)
-            .having((e) => e.isServerError, 'isServerError', isTrue)),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.status, 'status', 500)
+              .having((e) => e.isServerError, 'isServerError', isTrue),
+        ),
       );
     });
 
-    test('maps a transport failure to a network error naming the base URL',
-        () async {
-      final api = _client((_) => throw http.ClientException('connection refused'));
+    test(
+      'maps a transport failure to a network error naming the base URL',
+      () async {
+        final api = _client(
+          (_) => throw http.ClientException('connection refused'),
+        );
 
-      await expectLater(
-        api.classes(),
-        throwsA(isA<ApiException>()
-            .having((e) => e.isNetworkError, 'isNetworkError', isTrue)
-            .having((e) => e.message, 'message', contains(Env.apiBaseUrl))),
-      );
-    });
+        await expectLater(
+          api.classes(),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.isNetworkError, 'isNetworkError', isTrue)
+                .having((e) => e.message, 'message', contains(Env.apiBaseUrl)),
+          ),
+        );
+      },
+    );
 
     test('retries a GET that fails at the transport level', () async {
       final log = <http.Request>[];
@@ -130,10 +141,14 @@ void main() {
       final classes = await api.classes();
 
       expect(classes, isEmpty);
-      expect(log, hasLength(2), reason: 'one retry after the transport failure');
+      expect(
+        log,
+        hasLength(2),
+        reason: 'one retry after the transport failure',
+      );
     });
 
-    test('never retries a POST, which may already have been applied', () async {
+    test('does not retry a non-idempotent POST', () async {
       final log = <http.Request>[];
       final api = _client(
         (_) => throw http.ClientException('connection lost'),
@@ -141,12 +156,36 @@ void main() {
       );
 
       await expectLater(
-        api.submitAttempt(1, {2: 3}),
+        api.createClass('Class', 'Description', '#123456'),
         throwsA(isA<ApiException>()),
       );
-      expect(log, hasLength(1),
-          reason: 'replaying a submit could duplicate the attempt server-side');
+      expect(
+        log,
+        hasLength(1),
+        reason: 'replaying class creation could create a duplicate',
+      );
     });
+
+    test(
+      'retries idempotent attempt submission for deadline recovery',
+      () async {
+        final log = <http.Request>[];
+        var attempts = 0;
+        final api = _client((_) async {
+          attempts++;
+          if (attempts == 1) throw http.ClientException('connection lost');
+          return http.Response(
+            jsonEncode({'attempt_id': 1, 'score': 100, 'pending_essay': false}),
+            200,
+          );
+        }, log: log);
+
+        final result = await api.submitAttempt(1, {2: 3});
+
+        expect(result.attemptId, 1);
+        expect(log, hasLength(2));
+      },
+    );
   });
 
   group('ApiClient session handling', () {
@@ -184,8 +223,11 @@ void main() {
         throwsA(isA<ApiException>()),
       );
 
-      expect(unauthorizedCalls, 0,
-          reason: 'there is no session to expire on a failed login');
+      expect(
+        unauthorizedCalls,
+        0,
+        reason: 'there is no session to expire on a failed login',
+      );
     });
 
     test('logout clears the stored token even if the call fails', () async {

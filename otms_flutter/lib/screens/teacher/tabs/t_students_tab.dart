@@ -25,8 +25,16 @@ class _TStudentsTabState extends State<TStudentsTab>
     _future = Api.instance.classStudents(widget.classId);
   }
 
-  void _reload() => setState(
-      () => _future = Api.instance.classStudents(widget.classId));
+  @override
+  void didUpdateWidget(covariant TStudentsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.classStudents(widget.classId);
+    }
+  }
+
+  void _reload() =>
+      setState(() => _future = Api.instance.classStudents(widget.classId));
 
   @override
   Widget build(BuildContext context) {
@@ -57,9 +65,9 @@ class _TStudentsTabState extends State<TStudentsTab>
             return Card(
               child: ListTile(
                 leading: CircleAvatar(
-                  child: Text(s.fullName.isNotEmpty
-                      ? s.fullName[0].toUpperCase()
-                      : '?'),
+                  child: Text(
+                    s.fullName.isNotEmpty ? s.fullName[0].toUpperCase() : '?',
+                  ),
                 ),
                 title: Text(s.fullName),
                 subtitle: Text(s.email),

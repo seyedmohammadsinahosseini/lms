@@ -27,8 +27,7 @@ class _TeacherHomeState extends State<TeacherHome> {
     _code = Api.instance.getCode();
   }
 
-  void _reload() =>
-      setState(() => _classes = Api.instance.classes());
+  void _reload() => setState(() => _classes = Api.instance.classes());
 
   Future<void> _regenerate() async {
     final ok = await showDialog<bool>(
@@ -36,14 +35,17 @@ class _TeacherHomeState extends State<TeacherHome> {
       builder: (_) => AlertDialog(
         title: const Text('Regenerate code?'),
         content: const Text(
-            'Your current code stops working. Students already enrolled stay enrolled, but anyone with the old code can no longer join.'),
+          'Your current code stops working. Students already enrolled stay enrolled, but anyone with the old code can no longer join.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Regenerate')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Regenerate'),
+          ),
         ],
       ),
     );
@@ -77,9 +79,11 @@ class _TeacherHomeState extends State<TeacherHome> {
         actions: [
           IconButton(
             tooltip: 'Toggle theme',
-            icon: Icon(theme.isDark
-                ? Icons.light_mode_outlined
-                : Icons.dark_mode_outlined),
+            icon: Icon(
+              theme.isDark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+            ),
             onPressed: () => theme.toggle(),
           ),
           PopupMenuButton<String>(
@@ -109,8 +113,10 @@ class _TeacherHomeState extends State<TeacherHome> {
           children: [
             _codeCard(),
             const SizedBox(height: 20),
-            Text('Your classes',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Your classes',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             _classList(),
           ],
@@ -132,30 +138,38 @@ class _TeacherHomeState extends State<TeacherHome> {
               children: [
                 Icon(Icons.qr_code_2, color: scheme.onPrimaryContainer),
                 const SizedBox(width: 8),
-                Text('Your join code',
-                    style: TextStyle(
-                        color: scheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  'Your join code',
+                  style: TextStyle(
+                    color: scheme.onPrimaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 6),
-            Text('Share this with students so they can find and enroll in your classes.',
-                style: TextStyle(
-                    color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
-                    fontSize: 13)),
+            Text(
+              'Share this with students so they can find and enroll in your classes.',
+              style: TextStyle(
+                color: scheme.onPrimaryContainer.withValues(alpha: 0.8),
+                fontSize: 13,
+              ),
+            ),
             const SizedBox(height: 14),
             FutureBuilder<String?>(
               future: _code,
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const SizedBox(
-                      height: 24,
-                      child: Center(
-                          child: SizedBox(
-                              height: 20,
-                              width: 20,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2))));
+                    height: 24,
+                    child: Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  );
                 }
                 final code = snap.data ?? '——————';
                 return Row(
@@ -182,8 +196,10 @@ class _TeacherHomeState extends State<TeacherHome> {
                     IconButton(
                       tooltip: 'Regenerate',
                       onPressed: _regenerate,
-                      icon: Icon(Icons.refresh,
-                          color: scheme.onPrimaryContainer),
+                      icon: Icon(
+                        Icons.refresh,
+                        color: scheme.onPrimaryContainer,
+                      ),
                     ),
                   ],
                 );
@@ -215,18 +231,23 @@ class _TeacherHomeState extends State<TeacherHome> {
             child: EmptyState(
               icon: Icons.class_outlined,
               title: 'No classes yet',
-              subtitle: 'Create your first class to add lessons and assessments.',
+              subtitle:
+                  'Create your first class to add lessons and assessments.',
             ),
           );
         }
         return Column(
           children: classes
-              .map((c) => _ClassCard(
-                    cls: c,
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(
+              .map(
+                (c) => _ClassCard(
+                  cls: c,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
                       builder: (_) => TeacherClassDetail(cls: c),
-                    )),
-                  ))
+                    ),
+                  ),
+                ),
+              )
               .toList(),
         );
       },
@@ -265,13 +286,20 @@ class _ClassCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(cls.name,
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w600)),
+                    Text(
+                      cls.name,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if (cls.studentCount != null)
-                      Text('${cls.studentCount} student(s)',
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.outline)),
+                      Text(
+                        '${cls.studentCount} student(s)',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -280,7 +308,10 @@ class _ClassCard extends StatelessWidget {
                   if (value == 'delete') _deleteClass(context, cls.id);
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'delete', child: Text('Delete class')),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete class'),
+                  ),
                 ],
               ),
               const Icon(Icons.chevron_right),
@@ -296,21 +327,29 @@ class _ClassCard extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete class?'),
-        content: const Text('This will delete the class and all its content, lessons, assessments, and homework.'),
+        content: const Text(
+          'This will delete the class and all its content, lessons, assessments, and homework.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
-if (confirm != true) return;
-      try {
-        await Api.instance.deleteClass(classId);
-        if (!context.mounted) return;
-        showOk(context, 'Class deleted');
-      } catch (e) {
-        if (context.mounted) showError(context, e);
-      }
+    if (confirm != true) return;
+    try {
+      await Api.instance.deleteClass(classId);
+      if (!context.mounted) return;
+      showOk(context, 'Class deleted');
+    } catch (e) {
+      if (context.mounted) showError(context, e);
+    }
   }
 }
 
@@ -327,7 +366,12 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
   bool _busy = false;
 
   static const _palette = [
-    '#6366F1', '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#10B981',
+    '#6366F1',
+    '#14B8A6',
+    '#F59E0B',
+    '#EF4444',
+    '#8B5CF6',
+    '#10B981',
   ];
 
   @override
@@ -344,8 +388,11 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
     }
     setState(() => _busy = true);
     try {
-      await Api.instance
-          .createClass(_name.text.trim(), _desc.text.trim(), _color);
+      await Api.instance.createClass(
+        _name.text.trim(),
+        _desc.text.trim(),
+        _color,
+      );
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {
@@ -364,8 +411,10 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('New class',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const Text(
+            'New class',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _name,
@@ -401,7 +450,8 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
                     border: selected
                         ? Border.all(
                             color: Theme.of(context).colorScheme.onSurface,
-                            width: 3)
+                            width: 3,
+                          )
                         : null,
                   ),
                 ),
@@ -418,7 +468,10 @@ class _CreateClassSheetState extends State<_CreateClassSheet> {
                       height: 22,
                       width: 22,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text('Create class'),
             ),
           ),

@@ -1,86 +1,86 @@
 <?php
-// Add a question (any of 5 types) to an assessment.
-// Body: assessment_id, text, type, points, options[] (each {text, is_correct}).
-// For true_false/yes_no the client may omit options (server supplies defaults);
-// correct side is given via `correct` ("true"/"false" or "yes"/"no").
-// For fill_blank, `answer` holds the correct text. essay needs no options.
-require_once __DIR__ . '/../helpers.php';
+declare(strict_types=1);
+require_once __DIR__ . '/../assessment_service.php';
+require_method('POST');
 $user = require_auth();
 require_role($user, 'teacher');
-require_method('POST');
-
 $b = body();
-$assessmentId = (int)($b['assessment_id'] ?? 0);
-$text = trim($b['text'] ?? '');
-$type = $b['type'] ?? '';
-$points = max(1, (int)($b['points'] ?? 1));
+$assessmentId = (int)input_int($b, 'assessment_id', 1);
+$text = input_string($b, 'text', 10000, true, 1);
+$type = input_enum($b, 'type', ['single_choice', 'multiple_select', 'multiple_choice', 'true_false', 'yes_no', 'fill_blank', 'essay']);
+$points = (int)input_int($b, 'points', 1, 1000, false) ?: 1;
 
-// Verify ownership through the class.
-$stmt = db()->prepare('SELECT class_id FROM assessments WHERE id = ?');
-$stmt->execute([$assessmentId]);
-$a = $stmt->fetch();
-if (!$a) fail('Assessment not found', 404);
-owned_class_or_fail((int)$a['class_id'], (int)$user['id']);
-
-$valid = ['multiple_choice', 'true_false', 'yes_no', 'fill_blank', 'essay'];
-if (!in_array($type, $valid, true)) fail('Invalid question type.');
-if ($text === '') fail('Question text is required.');
-
-// Build the option list per type.
-$options = []; // each: [text, is_correct]
-if ($type === 'multiple_choice') {
-    $opts = $b['options'] ?? [];
-    if (count($opts) < 2) fail('Multiple choice needs at least 2 options.');
-    $hasCorrect = false;
-    foreach ($opts as $o) {
-        $t = trim($o['text'] ?? '');
-        if ($t === '') fail('Options cannot be empty.');
-        $c = !empty($o['is_correct']);
-        if ($c) $hasCorrect = true;
-        $options[] = [$t, $c ? 1 : 0];
+$options = [];
+if (in_array($type, ['single_choice', 'multiple_select', 'multiple_choice'], true)) {
+    $rawOptions = $b['options'] ?? null;
+    if (!is_array($rawOptions) || count($rawOptions) < 2 || count($rawOptions) > 20) {
+        fail('Choice questions need 2 to 20 options.', 422, 'VALIDATION_ERROR');
     }
-    if (!$hasCorrect) fail('Mark one option as correct.');
-} elseif ($type === 'true_false') {
-    $correct = strtolower($b['correct'] ?? 'true');
-    $options[] = ['True', $correct === 'true' ? 1 : 0];
-    $options[] = ['False', $correct === 'false' ? 1 : 0];
-} elseif ($type === 'yes_no') {
-    $correct = strtolower($b['correct'] ?? 'yes');
-    $options[] = ['Yes', $correct === 'yes' ? 1 : 0];
-    $options[] = ['No', $correct === 'no' ? 1 : 0];
-} elseif ($type === 'fill_blank') {
-    // Accept both 'answer' (legacy) and 'options' (new format) for fill_blank
-    $answer = '';
-    if (!empty($b['options']) && is_array($b['options'])) {
-        $opts = $b['options'];
-        if (count($opts) > 0 && isset($opts[0]['text'])) {
-            $answer = trim($opts[0]['text'] ?? '');
+    $correctCount = 0;
+    foreach (array_values($rawOptions) as $position => $option) {
+        if (!is_array($option)) fail('Each option must be an object.', 422, 'VALIDATION_ERROR');
+        $optionText = input_string($option, 'text', 2000, true, 1);
+        $correct = input_bool($option, 'is_correct', false);
+        if ($correct) $correctCount++;
+        $options[] = ['text' => $optionText, 'is_correct' => $correct, 'position' => $position];
+    }
+    if ($type === 'multiple_choice') $type = $correctCount > 1 ? 'multiple_select' : 'single_choice';
+    if ($type === 'single_choice' && $correctCount !== 1) {
+        fail('Single choice requires exactly one correct option.', 422, 'VALIDATION_ERROR');
+    }
+    if ($type === 'multiple_select' && $correctCount < 1) {
+        fail('Multiple select requires at least one correct option.', 422, 'VALIDATION_ERROR');
+    }
+} elseif (in_array($type, ['true_false', 'yes_no'], true)) {
+    $allowed = $type === 'true_false' ? ['true', 'false'] : ['yes', 'no'];
+    $labels = $type === 'true_false' ? ['True', 'False'] : ['Yes', 'No'];
+    $correct = strtolower((string)($b['correct'] ?? ''));
+    if ($correct === '' && isset($b['options']) && is_array($b['options'])) {
+        foreach ($b['options'] as $option) {
+            if (is_array($option) && !empty($option['is_correct'])) {
+                $correct = strtolower((string)($option['text'] ?? ''));
+            }
         }
     }
-    if ($answer === '') {
-        $answer = trim($b['answer'] ?? '');
+    if (!in_array($correct, $allowed, true)) {
+        fail('Select the correct answer.', 422, 'VALIDATION_ERROR', ['correct' => 'Required']);
     }
-    if ($answer === '') fail('Provide the correct answer.');
-    $options[] = [$answer, 1];
+    foreach ($labels as $position => $label) {
+        $options[] = ['text' => $label, 'is_correct' => strtolower($label) === $correct, 'position' => $position];
+    }
+} elseif ($type === 'fill_blank') {
+    $answer = isset($b['answer']) && is_string($b['answer']) ? trim($b['answer']) : '';
+    if ($answer === '' && isset($b['options'][0]['text'])) $answer = trim((string)$b['options'][0]['text']);
+    if ($answer === '' || mb_strlen($answer) > 2000) {
+        fail('Provide the correct fill-in answer.', 422, 'VALIDATION_ERROR');
+    }
+    $options[] = ['text' => $answer, 'is_correct' => true, 'position' => 0];
 }
-// essay -> no options
 
-$posStmt = db()->prepare('SELECT COALESCE(MAX(position)+1,0) FROM questions WHERE assessment_id = ?');
-$posStmt->execute([$assessmentId]);
-$pos = (int)$posStmt->fetchColumn();
-
-db()->beginTransaction();
+$pdo = db();
+$pdo->beginTransaction();
 try {
-    $stmt = db()->prepare('INSERT INTO questions (assessment_id, text, type, points, position) VALUES (?,?,?,?,?)');
-    $stmt->execute([$assessmentId, $text, $type, $points, $pos]);
-    $qid = (int)db()->lastInsertId();
-    if ($options) {
-        $ins = db()->prepare('INSERT INTO options (question_id, text, is_correct) VALUES (?,?,?)');
-        foreach ($options as [$ot, $oc]) $ins->execute([$qid, $ot, $oc]);
+    $stmt = $pdo->prepare('SELECT * FROM assessments WHERE id = ? FOR UPDATE');
+    $stmt->execute([$assessmentId]);
+    $assessment = $stmt->fetch();
+    if (!$assessment) fail('Assessment not found.', 404, 'NOT_FOUND');
+    owned_class_or_fail((int)$assessment['class_id'], (int)$user['id']);
+    $version = ensure_editable_assessment_version($assessment);
+    $posStmt = $pdo->prepare('SELECT COALESCE(MAX(position) + 1, 0) FROM questions WHERE assessment_version_id = ?');
+    $posStmt->execute([$version['id']]);
+    $position = (int)$posStmt->fetchColumn();
+    $pdo->prepare(
+        'INSERT INTO questions (assessment_version_id, text, type, points, position) VALUES (?,?,?,?,?)'
+    )->execute([$version['id'], $text, $type, $points, $position]);
+    $questionId = (int)$pdo->lastInsertId();
+    $insert = $pdo->prepare('INSERT INTO options (question_id, text, is_correct, position) VALUES (?,?,?,?)');
+    foreach ($options as $option) {
+        $insert->execute([$questionId, $option['text'], $option['is_correct'] ? 1 : 0, $option['position']]);
     }
-    db()->commit();
+    $pdo->commit();
 } catch (Throwable $e) {
-    db()->rollBack();
-    fail('Could not save question.', 500);
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    throw $e;
 }
-send(['id' => $qid], 201);
+audit_event((int)$user['id'], 'question.created', 'question', $questionId, ['assessment_id' => $assessmentId]);
+send(['id' => $questionId, 'type' => $type, 'version_no' => (int)$version['version_no']], 201);

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/config/env.dart';
 import '../../models/models.dart';
 import '../../services/api.dart';
 import '../shared/widgets.dart';
@@ -14,8 +15,16 @@ class ContentViewer extends StatelessWidget {
 
   Future<void> _open(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) showError(context, 'Could not open the link.');
+    if (uri == null ||
+        (uri.scheme != 'https' && (Env.isProduction || uri.scheme != 'http'))) {
+      if (context.mounted) {
+        showError(context, 'Only HTTPS links can be opened.');
+      }
+      return;
+    }
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        context.mounted) {
+      showError(context, 'Could not open this link.');
     }
   }
 
@@ -31,7 +40,8 @@ class ContentViewer extends StatelessWidget {
   }
 
   Widget _videoBody(BuildContext context) {
-    final link = content.url ??
+    final link =
+        content.url ??
         (content.filePath != null
             ? Api.instance.fileUrl(content.filePath!)
             : null);
@@ -43,14 +53,18 @@ class ContentViewer extends StatelessWidget {
           children: [
             const Icon(Icons.play_circle_fill, size: 80),
             const SizedBox(height: 16),
-            Text(content.title,
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center),
+            Text(
+              content.title,
+              style: Theme.of(context).textTheme.titleLarge,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             if (link != null)
-              Text(link,
-                  style: TextStyle(color: Theme.of(context).colorScheme.outline),
-                  textAlign: TextAlign.center),
+              Text(
+                link,
+                style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                textAlign: TextAlign.center,
+              ),
             const SizedBox(height: 24),
             if (link != null)
               FilledButton.icon(

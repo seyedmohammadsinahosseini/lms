@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart' hide Badge;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../models/models.dart';
 import '../../../services/api.dart';
 import '../../shared/file_helper.dart';
-import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
+import '../../shared/widgets.dart'
+    show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 
 /// Student view of a class's homework. Each item shows its own submission
 /// status; tapping opens a sheet to submit text and/or a file. A student
@@ -28,6 +30,14 @@ class _HomeworkTabState extends State<HomeworkTab>
     _future = Api.instance.homework(widget.classId);
   }
 
+  @override
+  void didUpdateWidget(covariant HomeworkTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.homework(widget.classId);
+    }
+  }
+
   void _reload() =>
       setState(() => _future = Api.instance.homework(widget.classId));
 
@@ -38,6 +48,103 @@ class _HomeworkTabState extends State<HomeworkTab>
       builder: (_) => _SubmitSheet(homework: hw),
     );
     if (done == true) _reload();
+  }
+
+  bool _isPast(String? value) {
+    if (value == null) return false;
+    final parsed = DateTime.tryParse(value);
+    return parsed != null && DateTime.now().toUtc().isAfter(parsed.toUtc());
+  }
+
+  Future<void> _openFile(String path) async {
+    final uri = Uri.tryParse(Api.instance.fileUrl(path));
+    if (uri == null || uri.scheme != 'https' || !await launchUrl(uri)) {
+      if (mounted) showError(context, 'Could not open the attached file.');
+    }
+  }
+
+  Future<void> _showHistory(int submissionId) async {
+    var history = Api.instance.submissionHistory(submissionId);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: .8,
+            child: FutureBuilder<List<SubmissionVersion>>(
+              future: history,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const LoadingView();
+                }
+                if (snapshot.hasError) {
+                  return ErrorRetry(
+                    error: snapshot.error!,
+                    onRetry: () => setSheetState(
+                      () => history = Api.instance.submissionHistory(
+                        submissionId,
+                      ),
+                    ),
+                  );
+                }
+                final versions = snapshot.data ?? const [];
+                return ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    Text(
+                      'Submission history',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    ...versions.map(
+                      (version) => Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    'Version ${version.versionNo}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (version.isLate)
+                                    const Badge('Late', color: Colors.orange),
+                                ],
+                              ),
+                              if (version.submittedAt != null)
+                                Text(
+                                  version.submittedAt!,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              if (version.text?.isNotEmpty == true) ...[
+                                const SizedBox(height: 8),
+                                Text(version.text!),
+                              ],
+                              if (version.filePath != null)
+                                TextButton.icon(
+                                  onPressed: () => _openFile(version.filePath!),
+                                  icon: const Icon(Icons.attach_file),
+                                  label: const Text('Open attachment'),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -73,20 +180,26 @@ class _HomeworkTabState extends State<HomeworkTab>
   Widget _card(Homework hw) {
     final sub = hw.mySubmission;
     final grade = sub?['grade'];
+    final initialWindowOpen = !_isPast(hw.dueAt) || hw.allowLateSubmission;
+    final resubmitWindowOpen =
+        hw.allowResubmit &&
+        (hw.resubmitUntil == null || !_isPast(hw.resubmitUntil));
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(hw.title,
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              hw.title,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
             if (hw.description != null && hw.description!.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(hw.description!,
-                  style: TextStyle(
-                      color: Theme.of(context).colorScheme.outline)),
+              Text(
+                hw.description!,
+                style: TextStyle(color: Theme.of(context).colorScheme.outline),
+              ),
             ],
             const SizedBox(height: 10),
             Wrap(
@@ -95,17 +208,42 @@ class _HomeworkTabState extends State<HomeworkTab>
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 if (hw.dueDate != null)
-                  Badge('Due ${hw.dueDate}',
-                      icon: Icons.event_outlined, color: Colors.orange),
+                  Badge(
+                    'Due ${hw.dueDate}',
+                    icon: Icons.event_outlined,
+                    color: Colors.orange,
+                  ),
+                Badge(
+                  hw.allowLateSubmission ? 'Late allowed' : 'No late work',
+                  icon: hw.allowLateSubmission
+                      ? Icons.event_available_outlined
+                      : Icons.event_busy_outlined,
+                  color: hw.allowLateSubmission ? Colors.teal : Colors.blueGrey,
+                ),
+                if (sub != null)
+                  Badge(
+                    'Version ${sub['version_no'] ?? 1}',
+                    icon: Icons.history_outlined,
+                  ),
                 if (sub == null)
-                  const Badge('Not submitted',
-                      icon: Icons.pending_outlined, color: Colors.blueGrey)
+                  const Badge(
+                    'Not submitted',
+                    icon: Icons.pending_outlined,
+                    color: Colors.blueGrey,
+                  )
                 else if (grade != null)
-                  Badge('Grade: $grade',
-                      icon: Icons.grade, color: Colors.green)
+                  Badge('Grade: $grade', icon: Icons.grade, color: Colors.green)
                 else
-                  const Badge('Submitted',
-                      icon: Icons.check_circle_outline, color: Colors.teal),
+                  const Badge(
+                    'Submitted',
+                    icon: Icons.check_circle_outline,
+                    color: Colors.teal,
+                  ),
+                if (hw.resubmitUntil != null)
+                  Badge(
+                    'Resubmit until ${hw.resubmitUntil}',
+                    icon: Icons.update_outlined,
+                  ),
               ],
             ),
             if (sub?['feedback'] != null &&
@@ -115,39 +253,60 @@ class _HomeworkTabState extends State<HomeworkTab>
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('Feedback: ${sub['feedback']}',
-                    style: const TextStyle(fontSize: 13)),
+                child: Text(
+                  'Feedback: ${sub['feedback']}',
+                  style: const TextStyle(fontSize: 13),
+                ),
               ),
             ],
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            if (sub == null && !initialWindowOpen)
+              const Text('The submission window is closed.')
+            else if (sub != null && grade == null && !resubmitWindowOpen)
+              const Text('Resubmissions are closed for this homework.'),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
               children: [
+                if (sub != null)
+                  TextButton.icon(
+                    onPressed: () =>
+                        _showHistory(int.tryParse('${sub['id']}') ?? 0),
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('History'),
+                  ),
                 if (sub != null && grade == null)
                   TextButton.icon(
-                    onPressed: () => _deleteSubmission(sub['id'] as int, hw),
-                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    onPressed: () => _deleteSubmission(
+                      int.tryParse('${sub['id']}') ?? 0,
+                      hw,
+                    ),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.red),
+                    ),
                   ),
-                if (sub != null && grade == null) const SizedBox(width: 8),
-                sub == null
-                    ? FilledButton.icon(
-                        onPressed: () => _openSubmit(hw),
-                        icon: const Icon(Icons.upload_file, size: 18),
-                        label: const Text('Submit'),
-                      )
-                    : (grade == null
-                        ? TextButton.icon(
-                            onPressed: () => _openSubmit(hw),
-                            icon: const Icon(Icons.edit, size: 18),
-                            label: const Text('Resubmit'),
-                          )
-                        : const SizedBox.shrink()),
+                if (sub == null && initialWindowOpen)
+                  FilledButton.icon(
+                    onPressed: () => _openSubmit(hw),
+                    icon: const Icon(Icons.upload_file, size: 18),
+                    label: const Text('Submit'),
+                  )
+                else if (sub != null && grade == null && resubmitWindowOpen)
+                  FilledButton.tonalIcon(
+                    onPressed: () => _openSubmit(hw),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Resubmit'),
+                  ),
               ],
             ),
           ],
@@ -163,8 +322,14 @@ class _HomeworkTabState extends State<HomeworkTab>
         title: const Text('Delete submission?'),
         content: const Text('This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -188,9 +353,17 @@ class _SubmitSheet extends StatefulWidget {
 }
 
 class _SubmitSheetState extends State<_SubmitSheet> {
-  final _text = TextEditingController();
+  late final TextEditingController _text;
   PickedFile? _file;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _text = TextEditingController(
+      text: widget.homework.mySubmission?['text']?.toString() ?? '',
+    );
+  }
 
   @override
   void dispose() {
@@ -199,8 +372,12 @@ class _SubmitSheetState extends State<_SubmitSheet> {
   }
 
   Future<void> _pick(bool image) async {
-    final f = image ? await pickImage() : await pickAnyFile();
-    if (f != null) setState(() => _file = f);
+    try {
+      final file = image ? await pickImage() : await pickAnyFile();
+      if (file != null && mounted) setState(() => _file = file);
+    } catch (error) {
+      if (mounted) showError(context, error);
+    }
   }
 
   Future<void> _submit() async {
@@ -228,73 +405,80 @@ class _SubmitSheetState extends State<_SubmitSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottom + 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Submit: ${widget.homework.title}',
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _text,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Your answer (optional)',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(),
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, bottom + 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Submit: ${widget.homework.title}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _pick(true),
-                icon: const Icon(Icons.image_outlined, size: 18),
-                label: const Text('Image'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _pick(false),
-                icon: const Icon(Icons.attach_file, size: 18),
-                label: const Text('File'),
-              ),
-            ],
-          ),
-          if (_file != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.insert_drive_file, size: 18),
-                  const SizedBox(width: 6),
-                  Expanded(
-                      child: Text(_file!.name,
-                          overflow: TextOverflow.ellipsis)),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => setState(() => _file = null),
-                  ),
-                ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _text,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Your answer (optional)',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
               ),
             ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _busy ? null : _submit,
-              child: _busy
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('Submit homework'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _pick(true),
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: const Text('Image'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _pick(false),
+                  icon: const Icon(Icons.attach_file, size: 18),
+                  label: const Text('File'),
+                ),
+              ],
             ),
-          ),
-        ],
+            if (_file != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.insert_drive_file, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(_file!.name, overflow: TextOverflow.ellipsis),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 18),
+                      onPressed: () => setState(() => _file = null),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _busy ? null : _submit,
+                child: _busy
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Submit homework'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

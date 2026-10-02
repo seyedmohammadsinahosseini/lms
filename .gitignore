@@ -18,6 +18,7 @@ Thumbs.db
 
 # Tooling that stores machine-specific state
 .claude/settings.local.json
+node_modules/
 
 # Local secrets / environment overrides -- never commit these
 .env
@@ -27,7 +28,13 @@ Thumbs.db
 # Logs and scratch files
 *.log
 
-# CI: GitHub refuses a push that creates a workflow file when the token
-# has no `workflow` scope, so the file is kept locally and ignored here. To
-# enable Actions: delete these two lines and push with a workflow-scoped token.
-.github/workflows/ci.yml
+# Runtime secrets, signing identities and generated release bundles
+/config/otms.env
+*.jks
+*.keystore
+*.p12
+.signing/
+/deploy-package/
+/releases/
+/storage/uploads/*
+!/storage/uploads/.gitignore

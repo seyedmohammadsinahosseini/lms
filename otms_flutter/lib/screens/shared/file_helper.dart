@@ -1,29 +1,36 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
-/// A picked file reduced to what the API needs: bytes + a display name.
+const int maxPickedFileBytes = 8 * 1024 * 1024;
+
 class PickedFile {
   final Uint8List bytes;
   final String name;
   PickedFile(this.bytes, this.name);
 }
 
-/// Opens the OS file picker (any type). Returns null if cancelled.
 Future<PickedFile?> pickAnyFile() async {
-  final result = await FilePicker.platform.pickFiles(withData: true);
-  if (result == null || result.files.isEmpty) return null;
-  final f = result.files.first;
-  if (f.bytes == null) return null;
-  return PickedFile(f.bytes!, f.name);
+  final files = await FilePicker.pickFiles();
+  if (files.isEmpty) return null;
+  final file = files.first;
+  final knownLength = file.lengthSync();
+  if (knownLength != null && knownLength > maxPickedFileBytes) {
+    throw const FormatException('File is larger than the 8 MB limit.');
+  }
+  final bytes = await file.readAsBytes();
+  if (bytes.length > maxPickedFileBytes) {
+    throw const FormatException('File is larger than the 8 MB limit.');
+  }
+  return PickedFile(bytes, file.name);
 }
 
-/// Opens the image picker (gallery). Returns null if cancelled.
 Future<PickedFile?> pickImage() async {
-  final picker = ImagePicker();
-  final img = await picker.pickImage(source: ImageSource.gallery);
-  if (img == null) return null;
-  final bytes = await img.readAsBytes();
-  return PickedFile(bytes, img.name);
+  final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+  if (image == null) return null;
+  final size = await image.length();
+  if (size > maxPickedFileBytes) {
+    throw const FormatException('Image is larger than the 8 MB limit.');
+  }
+  return PickedFile(await image.readAsBytes(), image.name);
 }

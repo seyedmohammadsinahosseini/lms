@@ -1,20 +1,19 @@
 <?php
-// Post a reply to a thread (teacher or enrolled student). Body: thread_id, body.
+declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
-$user = require_auth();
 require_method('POST');
-
+$user = require_auth();
 $b = body();
-$threadId = (int)($b['thread_id'] ?? 0);
-$bodyText = trim($b['body'] ?? '');
-if ($bodyText === '') fail('Reply cannot be empty.');
-
+$threadId = (int)input_int($b, 'thread_id', 1);
+$text = input_string($b, 'body', 20000, true, 1);
 $stmt = db()->prepare('SELECT class_id FROM qa_threads WHERE id = ?');
 $stmt->execute([$threadId]);
-$t = $stmt->fetch();
-if (!$t) fail('Thread not found', 404);
-class_access_or_fail((int)$t['class_id'], $user);
-
-$stmt = db()->prepare('INSERT INTO qa_replies (thread_id, author_id, body) VALUES (?,?,?)');
-$stmt->execute([$threadId, $user['id'], $bodyText]);
-send(['id' => (int)db()->lastInsertId()], 201);
+$classId = $stmt->fetchColumn();
+if (!$classId) fail('Thread not found.', 404, 'NOT_FOUND');
+class_access_or_fail((int)$classId, $user);
+enforce_rate_limit('qa_reply', (string)$user['id'], 60, 3600, 3600);
+db()->prepare('INSERT INTO qa_replies (thread_id, author_id, body) VALUES (?,?,?)')
+    ->execute([$threadId, $user['id'], $text]);
+$id = (int)db()->lastInsertId();
+audit_event((int)$user['id'], 'qa.reply_created', 'qa_reply', $id, ['thread_id' => $threadId]);
+send(['id' => $id], 201);
