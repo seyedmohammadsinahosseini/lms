@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: PHP, schema, migration and API tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Install PHP extensions and clients
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y php-cli php-mysql php-mbstring mariadb-client jq curl
+      - name: PHP syntax
+        run: find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Import fresh schema and security schema
+        env:
+          MYSQL_PWD: root
+        run: |
+          mariadb -h127.0.0.1 -uroot -e "CREATE DATABASE otms_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE otms_security CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER 'otms_ci'@'%' IDENTIFIED BY 'otms_ci'; GRANT ALL ON otms_test.* TO 'otms_ci'@'%'; GRANT ALL ON otms_security.* TO 'otms_ci'@'%'; FLUSH PRIVILEGES;"
+          mariadb -h127.0.0.1 -uroot otms_test < backend/schema.sql
+          mariadb -h127.0.0.1 -uroot otms_security < backend/schema.sql
+      - name: API lifecycle tests
+        env:
+          OTMS_DB_HOST: 127.0.0.1
+          OTMS_DB_NAME: otms_test
+          OTMS_DB_USER: otms_ci
+          OTMS_DB_PASS: otms_ci
+        run: bash tools/api_test.sh
+      - name: API security tests
+        env:
+          OTMS_DB_HOST: 127.0.0.1
+          OTMS_DB_NAME: otms_security
+          OTMS_DB_USER: otms_ci
+          OTMS_DB_PASS: otms_ci
+        run: bash tools/api_security_test.sh
+      - name: Upgrade migration from baseline schema
+        env:
+          MYSQL_PWD: root
+        run: |
+          mariadb -h127.0.0.1 -uroot -e 'DROP DATABASE IF EXISTS otms;'
+          git show c89f74a:backend/schema.sql | mariadb -h127.0.0.1 -uroot
+          mariadb -h127.0.0.1 -uroot otms < backend/migrations/2026-10-02_full_remediation.sql
+          test "$(mariadb -N -h127.0.0.1 -uroot -e "SELECT COUNT(*) FROM otms.schema_migrations WHERE version='2026-10-02_full_remediation'")" = 1
+      - name: Validate local seed against fresh schema
+        env:
+          MYSQL_PWD: root
+        run: |
+          mariadb -h127.0.0.1 -uroot -e 'CREATE DATABASE otms_seed CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+          mariadb -h127.0.0.1 -uroot otms_seed < backend/schema.sql
+          mariadb -h127.0.0.1 -uroot otms_seed < tools/demo_seed.sql
+          test "$(mariadb -N -h127.0.0.1 -uroot -e 'SELECT COUNT(*) FROM otms_seed.users')" = 2
+
+  flutter:
+    name: Flutter analysis, tests and builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+      - name: Dependencies
+        working-directory: otms_flutter
+        run: flutter pub get
+      - name: Static analysis
+        working-directory: otms_flutter
+        run: flutter analyze
+      - name: Unit and widget tests
+        working-directory: otms_flutter
+        run: flutter test
+      - name: Release web build
+        working-directory: otms_flutter
+        run: >-
+          flutter build web --release --no-wasm-dry-run
+          --dart-define=OTMS_API_BASE=https://portfolio.example.test/api/v1
+          --dart-define=OTMS_APP_MODE=portfolio_demo
+      - name: Debug Android build
+        working-directory: otms_flutter
+        env:
+          GRADLE_OPTS: -Dorg.gradle.daemon=false
+        run: >-
+          flutter build apk --debug
+          --dart-define=OTMS_API_BASE=https://portfolio.example.test/api/v1
+          --dart-define=OTMS_APP_MODE=development
+      - uses: actions/upload-artifact@v4
+        with:
+          name: otms-builds
+          path: |
+            otms_flutter/build/web
+            otms_flutter/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  browser-smoke:
+    name: Browser runtime smoke test
+    needs: flutter
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v5
+        with:
+          name: otms-builds
+          path: artifacts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Install browser test dependencies
+        working-directory: tools
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Serve web build
+        run: |
+          python3 -m http.server 8080 --directory artifacts/web > /tmp/otms-web.log 2>&1 &
+          echo $! > /tmp/otms-web.pid
+      - name: Runtime smoke test
+        env:
+          APP_URL: http://127.0.0.1:8080/
+        run: node tools/web_smoke_test.js artifacts/web-smoke.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-smoke
+          path: artifacts/web-smoke.png
+          if-no-files-found: warn
