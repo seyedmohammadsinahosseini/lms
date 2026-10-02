@@ -5,6 +5,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/shared/widgets.dart';
 import 'screens/student/student_dashboard.dart';
 import 'screens/teacher/teacher_dashboard.dart';
+import 'services/oms_api.dart';
 import 'state/auth_provider.dart';
 import 'state/theme_provider.dart';
 import 'theme/app_theme.dart';
@@ -14,13 +15,16 @@ import 'theme/app_theme.dart';
 /// The provider tree lives here rather than in `main()` so that widget tests can
 /// pump `OtmsApp` directly and still get a fully wired context.
 class OtmsApp extends StatelessWidget {
-  const OtmsApp({super.key});
+  final OmsApi? api;
+  const OtmsApp({super.key, this.api});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..bootstrap()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(api: api)..bootstrap(),
+        ),
         ChangeNotifierProvider(create: (_) => ThemeProvider()..load()),
       ],
       child: const _OtmsMaterialApp(),

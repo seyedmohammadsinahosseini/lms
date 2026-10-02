@@ -37,7 +37,10 @@ dependencies:
   provider: ^6.1.2
   http: ^1.2.2
   shared_preferences: ^2.3.2
-  file_picker: ^8.1.2
+  flutter_secure_storage: ^11.2.0
+  uuid: ^4.6.0
+  jitsi_meet_flutter_sdk: ^13.2.0
+  file_picker: ^13.1.0
   image_picker: ^1.1.2
   url_launcher: ^6.3.0
   intl: ^0.19.0

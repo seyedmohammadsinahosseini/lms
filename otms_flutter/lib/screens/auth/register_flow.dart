@@ -21,6 +21,7 @@ class _RegisterFlowState extends State<RegisterFlow> {
   final _name = TextEditingController();
   String _role = 'student';
   final _email = TextEditingController();
+  final _teacherInvite = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
@@ -36,6 +37,7 @@ class _RegisterFlowState extends State<RegisterFlow> {
     _pageController.dispose();
     _name.dispose();
     _email.dispose();
+    _teacherInvite.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
@@ -46,8 +48,11 @@ class _RegisterFlowState extends State<RegisterFlow> {
     if (!keys[_step].currentState!.validate()) return;
     if (_step < 2) {
       setState(() => _step++);
-      _pageController.animateToPage(_step,
-          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      _pageController.animateToPage(
+        _step,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     } else {
       _submit();
     }
@@ -59,19 +64,26 @@ class _RegisterFlowState extends State<RegisterFlow> {
       return;
     }
     setState(() => _step--);
-    _pageController.animateToPage(_step,
-        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    _pageController.animateToPage(
+      _step,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _submit() async {
     setState(() => _submitting = true);
     try {
       await context.read<AuthProvider>().register(
-            fullName: _name.text.trim(),
-            email: _email.text.trim(),
-            password: _password.text,
-            role: _role,
-          );
+        fullName: _name.text.trim(),
+        email: _email.text.trim(),
+        password: _password.text,
+        role: _role,
+        teacherInvite:
+            _role == 'teacher' && _teacherInvite.text.trim().isNotEmpty
+            ? _teacherInvite.text.trim()
+            : null,
+      );
       if (mounted) Navigator.of(context).pop(); // AuthGate shows the home.
     } catch (e) {
       if (mounted) showError(context, e);
@@ -101,11 +113,7 @@ class _RegisterFlowState extends State<RegisterFlow> {
                   child: PageView(
                     controller: _pageController,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _stepAbout(),
-                      _stepEmail(),
-                      _stepPassword(),
-                    ],
+                    children: [_stepAbout(), _stepEmail(), _stepPassword()],
                   ),
                 ),
                 Padding(
@@ -119,7 +127,10 @@ class _RegisterFlowState extends State<RegisterFlow> {
                               height: 22,
                               width: 22,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
                           : Text(_step < 2 ? 'Continue' : 'Create account'),
                     ),
                   ),
@@ -132,122 +143,147 @@ class _RegisterFlowState extends State<RegisterFlow> {
     );
   }
 
-  Widget _pad(Widget child) => SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: child,
-      );
+  Widget _pad(Widget child) =>
+      SingleChildScrollView(padding: const EdgeInsets.all(24), child: child);
 
-  Widget _stepAbout() => _pad(Form(
-        key: _step0Key,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Tell us who you are',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Full name',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Enter your name'
-                  : null,
+  Widget _stepAbout() => _pad(
+    Form(
+      key: _step0Key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Tell us who you are',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _name,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(
+              labelText: 'Full name',
+              prefixIcon: Icon(Icons.person_outline),
             ),
-            const SizedBox(height: 24),
-            Text('I am a', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(height: 10),
-            _RoleCard(
-              selected: _role == 'student',
-              icon: Icons.backpack_outlined,
-              title: 'Student',
-              subtitle: 'Join classes with a teacher code',
-              onTap: () => setState(() => _role = 'student'),
-            ),
-            const SizedBox(height: 12),
-            _RoleCard(
-              selected: _role == 'teacher',
-              icon: Icons.co_present_outlined,
-              title: 'Teacher',
-              subtitle: 'Create classes, lessons and assessments',
-              onTap: () => setState(() => _role = 'teacher'),
-            ),
-          ],
-        ),
-      ));
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+          ),
+          const SizedBox(height: 24),
+          Text('I am a', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 10),
+          _RoleCard(
+            selected: _role == 'student',
+            icon: Icons.backpack_outlined,
+            title: 'Student',
+            subtitle: 'Join classes with a teacher code',
+            onTap: () => setState(() => _role = 'student'),
+          ),
+          const SizedBox(height: 12),
+          _RoleCard(
+            selected: _role == 'teacher',
+            icon: Icons.co_present_outlined,
+            title: 'Teacher',
+            subtitle: 'Create classes, lessons and assessments',
+            onTap: () => setState(() => _role = 'teacher'),
+          ),
+        ],
+      ),
+    ),
+  );
 
-  Widget _stepEmail() => _pad(Form(
-        key: _step1Key,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('What is your email?',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text('You will use it to sign in.',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline)),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.mail_outline),
-              ),
-              validator: (v) {
-                final t = v?.trim() ?? '';
-                if (t.isEmpty) return 'Enter your email';
-                if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)) {
-                  return 'Enter a valid email';
-                }
-                return null;
-              },
+  Widget _stepEmail() => _pad(
+    Form(
+      key: _step1Key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'What is your email?',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'You will use it to sign in.',
+            style: TextStyle(color: Theme.of(context).colorScheme.outline),
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(Icons.mail_outline),
             ),
-          ],
-        ),
-      ));
+            validator: (v) {
+              final t = v?.trim() ?? '';
+              if (t.isEmpty) return 'Enter your email';
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)) {
+                return 'Enter a valid email';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    ),
+  );
 
-  Widget _stepPassword() => _pad(Form(
-        key: _step2Key,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Create a password',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text('At least 6 characters.',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline)),
-            const SizedBox(height: 20),
+  Widget _stepPassword() => _pad(
+    Form(
+      key: _step2Key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Create a password',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'At least 10 characters.',
+            style: TextStyle(color: Theme.of(context).colorScheme.outline),
+          ),
+          const SizedBox(height: 20),
+          if (_role == 'teacher') ...[
             TextFormField(
-              controller: _password,
-              obscureText: true,
+              controller: _teacherInvite,
+              autocorrect: false,
+              enableSuggestions: false,
               decoration: const InputDecoration(
-                labelText: 'Password',
-                prefixIcon: Icon(Icons.lock_outline),
+                labelText: 'Teacher invitation',
+                helperText:
+                    'Required when public teacher sign-up is restricted',
+                prefixIcon: Icon(Icons.vpn_key_outlined),
               ),
-              validator: (v) => (v == null || v.length < 6)
-                  ? 'Use at least 6 characters'
-                  : null,
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _confirm,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirm password',
-                prefixIcon: Icon(Icons.lock_outline),
-              ),
-              validator: (v) =>
-                  v != _password.text ? 'Passwords do not match' : null,
-            ),
           ],
-        ),
-      ));
+          TextFormField(
+            controller: _password,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              prefixIcon: Icon(Icons.lock_outline),
+            ),
+            validator: (v) => (v == null || v.length < 10)
+                ? 'Use at least 10 characters'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _confirm,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Confirm password',
+              prefixIcon: Icon(Icons.lock_outline),
+            ),
+            validator: (v) =>
+                v != _password.text ? 'Passwords do not match' : null,
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ProgressBar extends StatelessWidget {
@@ -264,7 +300,9 @@ class _ProgressBar extends StatelessWidget {
             height: 6,
             margin: EdgeInsets.only(right: i < total - 1 ? 8 : 0),
             decoration: BoxDecoration(
-              color: i <= step ? scheme.primary : scheme.surfaceContainerHighest,
+              color: i <= step
+                  ? scheme.primary
+                  : scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(3),
             ),
           ),
@@ -313,12 +351,17 @@ class _RoleCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 16)),
-                  Text(subtitle,
-                      style:
-                          TextStyle(color: scheme.outline, fontSize: 13)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(color: scheme.outline, fontSize: 13),
+                  ),
                 ],
               ),
             ),

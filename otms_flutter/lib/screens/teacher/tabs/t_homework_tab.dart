@@ -2,7 +2,8 @@ import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
 import '../../../services/api.dart';
-import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
+import '../../shared/widgets.dart'
+    show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 import '../submissions_screen.dart';
 
 /// Teacher homework manager: post homework and open each item to review
@@ -27,6 +28,14 @@ class _THomeworkTabState extends State<THomeworkTab>
     _future = Api.instance.homework(widget.classId);
   }
 
+  @override
+  void didUpdateWidget(covariant THomeworkTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.homework(widget.classId);
+    }
+  }
+
   void _reload() =>
       setState(() => _future = Api.instance.homework(widget.classId));
 
@@ -44,10 +53,18 @@ class _THomeworkTabState extends State<THomeworkTab>
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete homework?'),
-        content: const Text('This will delete the homework and all student submissions.'),
+        content: const Text(
+          'This will delete the homework and all student submissions.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -100,13 +117,14 @@ class _THomeworkTabState extends State<THomeworkTab>
     );
   }
 
-Widget _card(Homework hw) {
+  Widget _card(Homework hw) {
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        title: Text(hw.title,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        title: Text(
+          hw.title,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 6),
           child: Wrap(
@@ -114,10 +132,37 @@ Widget _card(Homework hw) {
             runSpacing: 6,
             children: [
               if (hw.dueDate != null)
-                Badge('Due ${hw.dueDate}',
-                    icon: Icons.event_outlined, color: Colors.orange),
-              Badge('${hw.submissionCount ?? 0} submission(s)',
-                icon: Icons.inbox_outlined),
+                Badge(
+                  'Due ${hw.dueDate}',
+                  icon: Icons.event_outlined,
+                  color: Colors.orange,
+                ),
+              Badge(
+                '${hw.submissionCount ?? 0} submission(s)',
+                icon: Icons.inbox_outlined,
+              ),
+              if ((hw.pendingCount ?? 0) > 0)
+                Badge(
+                  '${hw.pendingCount} pending',
+                  icon: Icons.rate_review_outlined,
+                  color: Colors.blue,
+                ),
+              Badge(
+                hw.allowLateSubmission ? 'Late allowed' : 'No late work',
+                icon: hw.allowLateSubmission
+                    ? Icons.event_available_outlined
+                    : Icons.event_busy_outlined,
+                color: hw.allowLateSubmission ? Colors.teal : Colors.blueGrey,
+              ),
+              Badge(
+                hw.allowResubmit ? 'Resubmission allowed' : 'One submission',
+                icon: Icons.history_outlined,
+              ),
+              if (hw.resubmitUntil != null)
+                Badge(
+                  'Resubmit until ${hw.resubmitUntil}',
+                  icon: Icons.update_outlined,
+                ),
             ],
           ),
         ),
@@ -132,10 +177,12 @@ Widget _card(Homework hw) {
             const Icon(Icons.chevron_right),
           ],
         ),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) =>
-              SubmissionsScreen(homeworkId: hw.id, title: hw.title),
-        )),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                SubmissionsScreen(homeworkId: hw.id, title: hw.title),
+          ),
+        ),
       ),
     );
   }
@@ -152,6 +199,9 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
   final _title = TextEditingController();
   final _desc = TextEditingController();
   DateTime? _due;
+  DateTime? _resubmitUntil;
+  bool _allowLate = false;
+  bool _allowResubmit = true;
   bool _busy = false;
 
   @override
@@ -172,6 +222,18 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
     if (d != null) setState(() => _due = d);
   }
 
+  Future<void> _pickResubmitUntil() async {
+    final now = DateTime.now();
+    final first = _due ?? now;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _resubmitUntil ?? first,
+      firstDate: first,
+      lastDate: now.add(const Duration(days: 730)),
+    );
+    if (date != null) setState(() => _resubmitUntil = date);
+  }
+
   Future<void> _save() async {
     if (_title.text.trim().isEmpty) {
       showError(context, 'Add a title.');
@@ -184,6 +246,18 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
         title: _title.text.trim(),
         description: _desc.text.trim(),
         dueDate: _due?.toIso8601String().split('T').first,
+        allowLateSubmission: _allowLate,
+        allowResubmit: _allowResubmit,
+        resubmitUntil: _allowResubmit && _resubmitUntil != null
+            ? DateTime.utc(
+                _resubmitUntil!.year,
+                _resubmitUntil!.month,
+                _resubmitUntil!.day,
+                23,
+                59,
+                59,
+              ).toIso8601String()
+            : null,
       );
       if (!mounted) return;
       Navigator.pop(context, true);
@@ -197,60 +271,102 @@ class _CreateHomeworkSheetState extends State<_CreateHomeworkSheet> {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottom + 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('New homework',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _title,
-            decoration: const InputDecoration(
-              labelText: 'Title',
-              border: OutlineInputBorder(),
+    return SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, bottom + 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'New homework',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _desc,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Instructions',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(
+                labelText: 'Title',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.event_outlined, size: 20),
-              const SizedBox(width: 8),
-              Text(_due == null
-                  ? 'No due date'
-                  : 'Due ${_due!.toIso8601String().split('T').first}'),
-              const Spacer(),
-              TextButton(
-                  onPressed: _pickDue, child: const Text('Set due date')),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _busy ? null : _save,
-              child: _busy
-                  ? const SizedBox(
-                      height: 22,
-                      width: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('Post homework'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _desc,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Instructions',
+                alignLabelWithHint: true,
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.event_outlined, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _due == null
+                        ? 'No due date'
+                        : 'Due ${_due!.toIso8601String().split('T').first}',
+                  ),
+                ),
+                TextButton(
+                  onPressed: _pickDue,
+                  child: const Text('Set due date'),
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Allow late submissions'),
+              value: _allowLate,
+              onChanged: (value) => setState(() => _allowLate = value),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Allow resubmissions'),
+              value: _allowResubmit,
+              onChanged: (value) => setState(() {
+                _allowResubmit = value;
+                if (!value) _resubmitUntil = null;
+              }),
+            ),
+            if (_allowResubmit)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.update_outlined),
+                title: Text(
+                  _resubmitUntil == null
+                      ? 'No separate resubmission cutoff'
+                      : 'Resubmit until ${_resubmitUntil!.toIso8601String().split('T').first}',
+                ),
+                trailing: TextButton(
+                  onPressed: _pickResubmitUntil,
+                  child: const Text('Set cutoff'),
+                ),
+              ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _busy ? null : _save,
+                child: _busy
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Post homework'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

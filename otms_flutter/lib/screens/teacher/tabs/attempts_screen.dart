@@ -2,7 +2,8 @@ import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
 import '../../../services/api.dart';
-import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge;
+import '../../shared/widgets.dart'
+    show LoadingView, ErrorRetry, EmptyState, Badge;
 import 'essay_grading_screen.dart';
 import '../../student/attempt_result.dart';
 
@@ -61,14 +62,24 @@ class _AttemptsScreenState extends State<AttemptsScreen> {
               attempt: items[i],
               onTap: () {
                 // Check if attempt has essay questions needing grading
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => AttemptResultScreen(attemptId: items[i].id),
-                )).then((_) => _reload());
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AttemptResultScreen(attemptId: items[i].id),
+                      ),
+                    )
+                    .then((_) => _reload());
               },
               onGradeEssays: () {
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => EssayGradingScreen(attemptId: items[i].id),
-                )).then((_) => _reload());
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EssayGradingScreen(attemptId: items[i].id),
+                      ),
+                    )
+                    .then((_) => _reload());
               },
             ),
           );
@@ -95,15 +106,18 @@ class _AttemptCard extends StatelessWidget {
     final hasScore = attempt.score != null;
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          child: Text(attempt.studentName.isNotEmpty
-              ? attempt.studentName[0].toUpperCase()
-              : '?'),
+          child: Text(
+            attempt.studentName.isNotEmpty
+                ? attempt.studentName[0].toUpperCase()
+                : '?',
+          ),
         ),
-        title: Text(attempt.studentName,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          attempt.studentName,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -112,19 +126,27 @@ class _AttemptCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 4,
               children: [
-                Badge(attempt.status,
-                    icon: attempt.status == 'completed'
-                        ? Icons.check_circle
-                        : Icons.hourglass_bottom,
-                    color: attempt.status == 'completed'
-                        ? Colors.green
-                        : Colors.orange),
+                Badge(
+                  attempt.status,
+                  icon: attempt.status == 'completed'
+                      ? Icons.check_circle
+                      : Icons.hourglass_bottom,
+                  color: attempt.status == 'completed'
+                      ? Colors.green
+                      : Colors.orange,
+                ),
                 if (hasScore)
-                  Badge('${attempt.score!.toStringAsFixed(0)}%',
-                      icon: Icons.grade, color: scheme.primary),
+                  Badge(
+                    '${attempt.score!.toStringAsFixed(0)}%',
+                    icon: Icons.grade,
+                    color: scheme.primary,
+                  ),
                 if (attempt.submittedAt != null)
-                  Badge('Submitted ${attempt.submittedAt}',
-                      icon: Icons.access_time, color: scheme.outline),
+                  Badge(
+                    'Submitted ${attempt.submittedAt}',
+                    icon: Icons.access_time,
+                    color: scheme.outline,
+                  ),
               ],
             ),
           ],

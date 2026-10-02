@@ -27,6 +27,14 @@ class _AssessmentsTabState extends State<AssessmentsTab>
     _future = Api.instance.assessments(widget.classId);
   }
 
+  @override
+  void didUpdateWidget(covariant AssessmentsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.assessments(widget.classId);
+    }
+  }
+
   void _reload() =>
       setState(() => _future = Api.instance.assessments(widget.classId));
 
@@ -43,17 +51,25 @@ class _AssessmentsTabState extends State<AssessmentsTab>
 
   Future<void> _openAttempt(Assessment a) async {
     final attempt = a.attempt;
-    if (attempt != null) {
-      // Already attempted -> show result.
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => AttemptResultScreen(attemptId: attempt.id),
-      ));
-    } else {
-      final done = await Navigator.of(context).push<bool>(MaterialPageRoute(
-        builder: (_) => TakeAssessment(assessmentId: a.id, title: a.title),
-      ));
-      if (done == true) _reload();
+    final canContinue =
+        attempt == null ||
+        attempt.status == 'in_progress' ||
+        attempt.status == 'expired';
+    if (!canContinue) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => AttemptResultScreen(attemptId: attempt.id),
+        ),
+      );
+      if (mounted) _reload();
+      return;
     }
+    final done = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => TakeAssessment(assessmentId: a.id, title: a.title),
+      ),
+    );
+    if (done == true && mounted) _reload();
   }
 
   @override
@@ -84,10 +100,14 @@ class _AssessmentsTabState extends State<AssessmentsTab>
             final attempt = a.attempt;
             return Card(
               child: ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Text(a.title,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                title: Text(
+                  a.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Wrap(
@@ -95,25 +115,25 @@ class _AssessmentsTabState extends State<AssessmentsTab>
                     runSpacing: 6,
                     children: [
                       Badge(a.kind.toUpperCase(), color: _kindColor(a.kind)),
-                      Badge('${a.questionCount} Qs',
-                          icon: Icons.help_outline),
+                      Badge('${a.questionCount} Qs', icon: Icons.help_outline),
                       if (a.durationMin > 0)
-                        Badge('${a.durationMin} min',
-                            icon: Icons.timer_outlined),
-                      if (attempt != null)
-                        _attemptBadge(attempt),
+                        Badge(
+                          '${a.durationMin} min',
+                          icon: Icons.timer_outlined,
+                        ),
+                      if (attempt != null) _attemptBadge(attempt),
                     ],
                   ),
                 ),
-                trailing: attempt == null
-                    ? FilledButton(
-                        onPressed: () => _openAttempt(a),
-                        child: const Text('Start'),
-                      )
-                    : TextButton(
-                        onPressed: () => _openAttempt(a),
-                        child: const Text('View'),
-                      ),
+                trailing: FilledButton.tonal(
+                  onPressed: () => _openAttempt(a),
+                  child: Text(switch (attempt?.status) {
+                    null => 'Start',
+                    'in_progress' => 'Continue',
+                    'expired' => 'Try again',
+                    _ => 'View',
+                  }),
+                ),
               ),
             );
           },
@@ -123,12 +143,35 @@ class _AssessmentsTabState extends State<AssessmentsTab>
   }
 
   Widget _attemptBadge(AttemptSummary s) {
-    if (s.status == 'completed') {
-      return const Badge('Awaiting grade',
-          icon: Icons.hourglass_bottom, color: Colors.blueGrey);
+    switch (s.status) {
+      case 'in_progress':
+        return const Badge(
+          'In progress',
+          icon: Icons.timer_outlined,
+          color: Colors.blue,
+        );
+      case 'pending_grading':
+      case 'submitted':
+        return const Badge(
+          'Awaiting grade',
+          icon: Icons.hourglass_bottom,
+          color: Colors.orange,
+        );
+      case 'expired':
+        return const Badge(
+          'Expired',
+          icon: Icons.warning_amber,
+          color: Colors.red,
+        );
+      case 'graded':
+        final score = s.score?.toStringAsFixed(0) ?? '--';
+        return Badge(
+          'Scored $score%',
+          icon: Icons.check_circle_outline,
+          color: Colors.green,
+        );
+      default:
+        return Badge(s.status);
     }
-    final score = s.score?.toStringAsFixed(0) ?? '--';
-    return Badge('Scored $score%',
-        icon: Icons.check_circle_outline, color: Colors.green);
   }
 }

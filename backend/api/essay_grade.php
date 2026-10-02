@@ -1,63 +1,40 @@
 <?php
-// Teacher grades one essay answer. Body: answer_id, points_earned.
-// Recomputes the attempt score across all answers and marks it 'graded'
-// once no essay answers remain ungraded.
-require_once __DIR__ . '/../helpers.php';
+declare(strict_types=1);
+require_once __DIR__ . '/../assessment_service.php';
+require_method('POST');
 $user = require_auth();
 require_role($user, 'teacher');
-require_method('POST');
-
 $b = body();
-$answerId = (int)($b['answer_id'] ?? 0);
-$points = max(0, (int)($b['points_earned'] ?? 0));
+$answerId = (int)input_int($b, 'answer_id', 1);
+$points = (int)input_int($b, 'points_earned', 0, 1000);
 
-// Load answer -> question -> attempt -> class, verify ownership.
-$stmt = db()->prepare(
-    'SELECT ans.*, q.points AS q_points, q.type AS q_type, at.id AS attempt_id,
-            at.assessment_id, a.class_id
-     FROM answers ans
-     JOIN questions q ON q.id = ans.question_id
-     JOIN attempts at ON at.id = ans.attempt_id
-     JOIN assessments a ON a.id = at.assessment_id
-     WHERE ans.id = ?'
-);
-$stmt->execute([$answerId]);
-$row = $stmt->fetch();
-if (!$row) fail('Answer not found', 404);
-if ($row['q_type'] !== 'essay') fail('Only essay answers are graded manually.');
-owned_class_or_fail((int)$row['class_id'], (int)$user['id']);
-if ($points > (int)$row['q_points']) fail('Points exceed the question maximum.');
-
-db()->beginTransaction();
+$pdo = db();
+$pdo->beginTransaction();
 try {
-    db()->prepare('UPDATE answers SET points_earned = ?, is_correct = ? WHERE id = ?')
-        ->execute([$points, $points > 0 ? 1 : 0, $answerId]);
-
-    $attemptId = (int)$row['attempt_id'];
-    $assessmentId = (int)$row['assessment_id'];
-
-    $totalStmt = db()->prepare('SELECT COALESCE(SUM(points),0) FROM questions WHERE assessment_id = ?');
-    $totalStmt->execute([$assessmentId]);
-    $total = (int)$totalStmt->fetchColumn();
-
-    $earnedStmt = db()->prepare('SELECT COALESCE(SUM(points_earned),0) FROM answers WHERE attempt_id = ?');
-    $earnedStmt->execute([$attemptId]);
-    $earned = (int)$earnedStmt->fetchColumn();
-
-    // Any essay still ungraded (points_earned NULL)?
-    $pending = db()->prepare(
-        "SELECT COUNT(*) FROM answers ans JOIN questions q ON q.id = ans.question_id
-         WHERE ans.attempt_id = ? AND q.type = 'essay' AND ans.points_earned IS NULL"
+    $stmt = $pdo->prepare(
+        "SELECT ans.id, ans.attempt_id, q.points, q.type, a.class_id
+         FROM answers ans JOIN questions q ON q.id = ans.question_id
+         JOIN attempts at ON at.id = ans.attempt_id
+         JOIN assessments a ON a.id = at.assessment_id
+         WHERE ans.id = ? FOR UPDATE"
     );
-    $pending->execute([$attemptId]);
-    $status = ((int)$pending->fetchColumn() === 0) ? 'graded' : 'completed';
-
-    $score = $total > 0 ? round($earned / $total * 100, 2) : 0;
-    db()->prepare('UPDATE attempts SET score = ?, status = ? WHERE id = ?')
-        ->execute([$score, $status, $attemptId]);
-    db()->commit();
+    $stmt->execute([$answerId]);
+    $answer = $stmt->fetch();
+    if (!$answer) fail('Answer not found.', 404, 'NOT_FOUND');
+    owned_class_or_fail((int)$answer['class_id'], (int)$user['id']);
+    if ($answer['type'] !== 'essay') fail('Only essay answers can be manually graded.', 422, 'INVALID_ANSWER_TYPE');
+    if ($points > (float)$answer['points']) {
+        fail('Points cannot exceed the question maximum.', 422, 'VALIDATION_ERROR');
+    }
+    $pdo->prepare(
+        "UPDATE answers SET points_earned = ?, grading_status = 'graded',
+         is_correct = ?, graded_at = UTC_TIMESTAMP() WHERE id = ?"
+    )->execute([$points, $points >= (float)$answer['points'] ? 1 : 0, $answerId]);
+    $result = recalculate_attempt((int)$answer['attempt_id']);
+    $pdo->commit();
 } catch (Throwable $e) {
-    db()->rollBack();
-    fail('Could not grade answer.', 500);
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    throw $e;
 }
-send(['score' => $score, 'status' => $status]);
+audit_event((int)$user['id'], 'essay.graded', 'answer', $answerId, ['points' => $points]);
+send(['success' => true, ...$result]);

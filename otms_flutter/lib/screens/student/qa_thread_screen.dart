@@ -76,10 +76,12 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Center(
-                          child: Text('No replies yet.',
-                              style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.outline)),
+                          child: Text(
+                            'No replies yet.',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                          ),
                         ),
                       )
                     else
@@ -102,18 +104,22 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(t.title,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              t.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
             if (t.body != null && t.body!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(t.body!),
             ],
             const SizedBox(height: 10),
-            Text('Asked by ${t.authorName}',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline,
-                    fontSize: 12)),
+            Text(
+              'Asked by ${t.authorName}',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.outline,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),
@@ -133,12 +139,17 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
           children: [
             Row(
               children: [
-                Text(r.authorName,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  r.authorName,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(width: 8),
                 if (isTeacher)
-                  const Badge('Teacher',
-                      icon: Icons.school, color: Colors.indigo),
+                  const Badge(
+                    'Teacher',
+                    icon: Icons.school,
+                    color: Colors.indigo,
+                  ),
               ],
             ),
             const SizedBox(height: 6),
@@ -163,8 +174,10 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
                 decoration: const InputDecoration(
                   hintText: 'Write a reply...',
                   border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                 ),
               ),
             ),
@@ -176,7 +189,10 @@ class _QaThreadScreenState extends State<QaThreadScreen> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.send),
             ),
           ],

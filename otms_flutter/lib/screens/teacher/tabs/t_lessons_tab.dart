@@ -28,6 +28,14 @@ class _TLessonsTabState extends State<TLessonsTab>
     _future = Api.instance.lessons(widget.classId);
   }
 
+  @override
+  void didUpdateWidget(covariant TLessonsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = Api.instance.lessons(widget.classId);
+    }
+  }
+
   void _reload() =>
       setState(() => _future = Api.instance.lessons(widget.classId));
 
@@ -68,7 +76,11 @@ class _TLessonsTabState extends State<TLessonsTab>
           return ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: lessons.length,
-            itemBuilder: (_, i) => _TLessonCard(lesson: lessons[i], onDeleted: _reload),
+            itemBuilder: (_, i) => _TLessonCard(
+              key: ValueKey(lessons[i].id),
+              lesson: lessons[i],
+              onDeleted: _reload,
+            ),
           );
         },
       ),
@@ -85,7 +97,11 @@ class _TLessonsTabState extends State<TLessonsTab>
 class _TLessonCard extends StatefulWidget {
   final Lesson lesson;
   final VoidCallback onDeleted;
-  const _TLessonCard({required this.lesson, required this.onDeleted});
+  const _TLessonCard({
+    super.key,
+    required this.lesson,
+    required this.onDeleted,
+  });
   @override
   State<_TLessonCard> createState() => _TLessonCardState();
 }
@@ -93,9 +109,14 @@ class _TLessonCard extends StatefulWidget {
 class _TLessonCardState extends State<_TLessonCard> {
   Future<List<Content>>? _contents;
 
+  @override
+  void didUpdateWidget(covariant _TLessonCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lesson.id != widget.lesson.id) _contents = null;
+  }
+
   void _load() {
-    setState(() =>
-        _contents = Api.instance.contents(widget.lesson.id));
+    setState(() => _contents = Api.instance.contents(widget.lesson.id));
   }
 
   IconData _iconFor(String type) {
@@ -110,9 +131,11 @@ class _TLessonCardState extends State<_TLessonCard> {
   }
 
   Future<void> _addContent() async {
-    final added = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ContentEditor(lessonId: widget.lesson.id),
-    ));
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ContentEditor(lessonId: widget.lesson.id),
+      ),
+    );
     if (added == true) _load();
   }
 
@@ -123,8 +146,14 @@ class _TLessonCardState extends State<_TLessonCard> {
         title: const Text('Delete content?'),
         content: const Text('This action cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -146,8 +175,14 @@ class _TLessonCardState extends State<_TLessonCard> {
         title: const Text('Delete lesson?'),
         content: const Text('This will delete the lesson and all its content.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -174,21 +209,30 @@ class _TLessonCardState extends State<_TLessonCard> {
             if (open && _contents == null) _load();
           },
           leading: CircleAvatar(
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-            child: Text('${widget.lesson.position + 1}',
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600)),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.12),
+            child: Text(
+              '${widget.lesson.position + 1}',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          title: Text(widget.lesson.title,
-              style: const TextStyle(fontWeight: FontWeight.w600)),
+          title: Text(
+            widget.lesson.title,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
           trailing: PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'delete') _deleteLesson();
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'delete', child: Text('Delete lesson')),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete lesson'),
+              ),
             ],
           ),
           childrenPadding: const EdgeInsets.only(bottom: 8),
@@ -203,6 +247,12 @@ class _TLessonCardState extends State<_TLessonCard> {
                       child: Center(child: CircularProgressIndicator()),
                     );
                   }
+                  if (snap.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: ErrorRetry(error: snap.error!, onRetry: _load),
+                    );
+                  }
                   final items = snap.data ?? [];
                   return Column(
                     children: [
@@ -212,25 +262,32 @@ class _TLessonCardState extends State<_TLessonCard> {
                           child: Text('No content yet.'),
                         )
                       else
-                        ...items.map((c) => ListTile(
-                              leading: Icon(_iconFor(c.type)),
-                              title: Text(c.title),
-                              subtitle: Text(c.type.toUpperCase(),
-                                  style: const TextStyle(fontSize: 11)),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'delete') _deleteContent(c.id);
-                                },
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                                ],
-                              ),
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => ContentViewer(content: c),
+                        ...items.map(
+                          (c) => ListTile(
+                            leading: Icon(_iconFor(c.type)),
+                            title: Text(c.title),
+                            subtitle: Text(
+                              c.type.toUpperCase(),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'delete') _deleteContent(c.id);
+                              },
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
                                 ),
+                              ],
+                            ),
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ContentViewer(content: c),
                               ),
-                            )),
+                            ),
+                          ),
+                        ),
                     ],
                   );
                 },
@@ -254,8 +311,7 @@ class _TLessonCardState extends State<_TLessonCard> {
 }
 
 /// Small reusable single-field prompt dialog.
-Future<String?> _promptText(
-    BuildContext context, String title, String label) {
+Future<String?> _promptText(BuildContext context, String title, String label) {
   final ctrl = TextEditingController();
   return showDialog<String>(
     context: context,
@@ -268,11 +324,13 @@ Future<String?> _promptText(
       ),
       actions: [
         TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel')),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text),
-            child: const Text('Add')),
+          onPressed: () => Navigator.pop(context, ctrl.text),
+          child: const Text('Add'),
+        ),
       ],
     ),
   );

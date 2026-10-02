@@ -2,7 +2,8 @@ import 'package:flutter/material.dart' hide Badge;
 
 import '../../../models/models.dart';
 import '../../../services/api.dart';
-import '../../shared/widgets.dart' show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
+import '../../shared/widgets.dart'
+    show LoadingView, ErrorRetry, EmptyState, Badge, showError, showOk;
 
 /// Teacher screen to grade essay answers in an attempt.
 /// Shows only essay questions that haven't been graded yet.
@@ -39,16 +40,21 @@ class _EssayGradingScreenState extends State<EssayGradingScreen> {
             return ErrorRetry(error: snap.error!, onRetry: _reload);
           }
           final detail = snap.data!;
-          final essayAnswers = detail.answers.where((a) =>
-              a.type == 'essay' &&
-              a.answerId != null &&
-              a.isCorrect == null).toList();
+          final essayAnswers = detail.answers
+              .where(
+                (a) =>
+                    a.type == 'essay' &&
+                    a.answerId != null &&
+                    a.isCorrect == null,
+              )
+              .toList();
 
           if (essayAnswers.isEmpty) {
             return const EmptyState(
               icon: Icons.check_circle_outline,
               title: 'No essays to grade',
-              subtitle: 'All essay questions have been graded for this attempt.',
+              subtitle:
+                  'All essay questions have been graded for this attempt.',
             );
           }
 
@@ -56,10 +62,8 @@ class _EssayGradingScreenState extends State<EssayGradingScreen> {
             padding: const EdgeInsets.all(16),
             itemCount: essayAnswers.length,
             separatorBuilder: (_, _) => const SizedBox(height: 16),
-            itemBuilder: (_, i) => _EssayGradeCard(
-              answer: essayAnswers[i],
-              onGraded: _reload,
-            ),
+            itemBuilder: (_, i) =>
+                _EssayGradeCard(answer: essayAnswers[i], onGraded: _reload),
           );
         },
       ),
@@ -70,10 +74,7 @@ class _EssayGradingScreenState extends State<EssayGradingScreen> {
 class _EssayGradeCard extends StatefulWidget {
   final AttemptAnswer answer;
   final VoidCallback onGraded;
-  const _EssayGradeCard({
-    required this.answer,
-    required this.onGraded,
-  });
+  const _EssayGradeCard({required this.answer, required this.onGraded});
   @override
   State<_EssayGradeCard> createState() => _EssayGradeCardState();
 }
@@ -121,16 +122,22 @@ class _EssayGradeCardState extends State<_EssayGradeCard> {
                 Icon(Icons.edit_document, color: scheme.primary, size: 22),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(widget.answer.text,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    widget.answer.text,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
-                Badge('${widget.answer.points} pts',
-                    color: scheme.secondary),
+                Badge('${widget.answer.points} pts', color: scheme.secondary),
               ],
             ),
             const SizedBox(height: 12),
-            Text('Student answer:',
-                style: TextStyle(color: scheme.outline, fontWeight: FontWeight.w600)),
+            Text(
+              'Student answer:',
+              style: TextStyle(
+                color: scheme.outline,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 4),
             Container(
               width: double.infinity,
@@ -167,7 +174,10 @@ class _EssayGradeCardState extends State<_EssayGradeCard> {
                           height: 22,
                           width: 22,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : const Text('Save'),
                 ),
               ],

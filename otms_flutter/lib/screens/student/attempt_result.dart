@@ -34,16 +34,17 @@ class _AttemptResultScreenState extends State<AttemptResultScreen> {
           }
           if (snap.hasError) {
             return ErrorRetry(
-                error: snap.error!,
-                onRetry: () => setState(() => _future =
-                    Api.instance.attemptDetail(widget.attemptId)));
+              error: snap.error!,
+              onRetry: () => setState(
+                () => _future = Api.instance.attemptDetail(widget.attemptId),
+              ),
+            );
           }
           final a = snap.data!;
-          final pending = a.status == 'completed';
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _scoreHeader(a, pending),
+              _scoreHeader(a),
               const SizedBox(height: 16),
               ...a.answers.map(_answerCard),
             ],
@@ -53,30 +54,49 @@ class _AttemptResultScreenState extends State<AttemptResultScreen> {
     );
   }
 
-  Widget _scoreHeader(AttemptDetail a, bool pending) {
+  Widget _scoreHeader(AttemptDetail a) {
     final scheme = Theme.of(context).colorScheme;
+    final pending = a.status == 'pending_grading';
+    final expired = a.status == 'expired';
     final score = a.score?.toStringAsFixed(0) ?? '--';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Text(a.assessmentTitle,
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center),
+            Text(
+              a.assessmentTitle,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
-            Text('$score%',
-                style: TextStyle(
-                    fontSize: 44,
-                    fontWeight: FontWeight.w800,
-                    color: scheme.primary)),
+            Text(
+              '$score%',
+              style: TextStyle(
+                fontSize: 44,
+                fontWeight: FontWeight.w800,
+                color: scheme.primary,
+              ),
+            ),
             const SizedBox(height: 8),
-            if (pending)
-              const Badge('Awaiting essay grade',
-                  icon: Icons.hourglass_bottom, color: Colors.blueGrey)
+            if (expired)
+              const Badge(
+                'Time expired before submission',
+                icon: Icons.timer_off_outlined,
+                color: Colors.red,
+              )
+            else if (pending)
+              const Badge(
+                'Awaiting essay grade',
+                icon: Icons.hourglass_bottom,
+                color: Colors.blueGrey,
+              )
             else
-              const Badge('Graded',
-                  icon: Icons.check_circle, color: Colors.green),
+              const Badge(
+                'Graded',
+                icon: Icons.check_circle,
+                color: Colors.green,
+              ),
           ],
         ),
       ),
@@ -112,8 +132,10 @@ class _AttemptResultScreenState extends State<AttemptResultScreen> {
                   Icon(statusIcon, color: statusColor, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(ans.text,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  child: Text(
+                    ans.text,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
                 Text(
                   ans.pointsEarned != null
@@ -144,8 +166,9 @@ class _AttemptResultScreenState extends State<AttemptResultScreen> {
           style: DefaultTextStyle.of(context).style,
           children: [
             TextSpan(
-                text: '$label: ',
-                style: TextStyle(color: scheme.outline, fontSize: 13)),
+              text: '$label: ',
+              style: TextStyle(color: scheme.outline, fontSize: 13),
+            ),
             TextSpan(text: value, style: const TextStyle(fontSize: 14)),
           ],
         ),

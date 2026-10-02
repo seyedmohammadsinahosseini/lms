@@ -70,11 +70,15 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
         body: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text('Enter your teacher\'s code',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Enter your teacher\'s code',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 4),
-            Text('They can share it from their dashboard.',
-                style: TextStyle(color: scheme.outline)),
+            Text(
+              'They can share it from their dashboard.',
+              style: TextStyle(color: scheme.outline),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -100,7 +104,10 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Text('Look up'),
                   ),
                 ),
@@ -132,11 +139,17 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(r.teacherName,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w600)),
-                Text('${r.classes.length} class(es) available',
-                    style: TextStyle(color: scheme.outline)),
+                Text(
+                  r.teacherName,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '${r.classes.length} class(es) available',
+                  style: TextStyle(color: scheme.outline),
+                ),
               ],
             ),
           ],
@@ -176,16 +189,23 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(c.name,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(
+                    c.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   if (c.description != null && c.description!.isNotEmpty)
-                    Text(c.description!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(context).colorScheme.outline)),
+                    Text(
+                      c.description!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -194,9 +214,10 @@ class _JoinTeacherScreenState extends State<JoinTeacherScreen> {
               const Badge('Enrolled', icon: Icons.check, color: Colors.green)
             else if (busy)
               const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             else
               FilledButton.tonal(
                 onPressed: () => _enroll(c),

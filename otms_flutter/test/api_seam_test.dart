@@ -28,38 +28,47 @@ class _FakeApi implements OmsApi {
   Future<User> login(String email, String password) async {
     loginCalls++;
     seenEmail = email;
-    return User(id: 1, fullName: 'From The Fake', email: email, role: 'teacher');
+    return User(
+      id: 1,
+      fullName: 'From The Fake',
+      email: email,
+      role: 'teacher',
+    );
   }
 
   @override
   Future<void> logout() async {}
 
   @override
-  dynamic noSuchMethod(Invocation invocation) =>
-      super.noSuchMethod(invocation);
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('a provider reads through Api.instance, not through the HTTP client',
-      () async {
-    final fake = _FakeApi();
-    final previous = Api.instance;
-    Api.use(fake);
-    addTearDown(() => Api.use(previous));
+  test(
+    'a provider reads through Api.instance, not through the HTTP client',
+    () async {
+      final fake = _FakeApi();
+      final previous = Api.instance;
+      Api.use(fake);
+      addTearDown(() => Api.use(previous));
 
-    final auth = AuthProvider();
+      final auth = AuthProvider();
 
-    expect(auth.user, isNull);
-    await auth.login('someone@otms.test', 'password');
+      expect(auth.user, isNull);
+      await auth.login('someone@otms.test', 'password');
 
-    expect(fake.loginCalls, 1,
-        reason: 'AuthProvider must go through whatever Api.instance holds');
-    expect(fake.seenEmail, 'someone@otms.test');
-    expect(auth.isAuthenticated, isTrue);
-    expect(auth.user?.fullName, 'From The Fake');
-  });
+      expect(
+        fake.loginCalls,
+        1,
+        reason: 'AuthProvider must go through whatever Api.instance holds',
+      );
+      expect(fake.seenEmail, 'someone@otms.test');
+      expect(auth.isAuthenticated, isTrue);
+      expect(auth.user?.fullName, 'From The Fake');
+    },
+  );
 
   test('the seam carries the whole surface, not just auth', () async {
     final fake = _FakeApi();

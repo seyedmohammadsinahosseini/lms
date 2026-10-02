@@ -29,9 +29,9 @@ class _StudentHomeState extends State<StudentHome> {
   }
 
   Future<void> _openJoin() async {
-    final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const JoinTeacherScreen()),
-    );
+    final changed = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const JoinTeacherScreen()));
     if (changed == true) _reload();
   }
 
@@ -45,9 +45,11 @@ class _StudentHomeState extends State<StudentHome> {
         actions: [
           IconButton(
             tooltip: 'Toggle theme',
-            icon: Icon(theme.isDark
-                ? Icons.light_mode_outlined
-                : Icons.dark_mode_outlined),
+            icon: Icon(
+              theme.isDark
+                  ? Icons.light_mode_outlined
+                  : Icons.dark_mode_outlined,
+            ),
             onPressed: () => theme.toggle(),
           ),
           PopupMenuButton<String>(
@@ -151,22 +153,32 @@ class _ClassCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(cls.name,
-                        style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.w600)),
+                    Text(
+                      cls.name,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if (cls.teacherName != null)
-                      Text(cls.teacherName!,
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.outline)),
+                      Text(
+                        cls.teacherName!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
                     if (cls.description != null &&
                         cls.description!.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text(cls.description!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(context).colorScheme.outline)),
+                      Text(
+                        cls.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
                     ],
                   ],
                 ),

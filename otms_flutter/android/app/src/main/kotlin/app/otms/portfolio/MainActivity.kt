@@ -1,4 +1,4 @@
-package test.otms.otms_flutter
+package app.otms.portfolio
 
 import io.flutter.embedding.android.FlutterActivity
 
