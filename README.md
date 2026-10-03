@@ -160,15 +160,15 @@ The migration is intentionally one-way. Recovery means restoring the backup.
 
 ## Deployment and releases
 
-- Free portfolio deployment on Alwaysdata:
+- Free portfolio deployment on HelioHost Johnny:
   [docs/استقرار-رایگان.md](docs/استقرار-رایگان.md)
 - Signed universal Android APK and SHA-256:
   [docs/انتشار-اندروید.md](docs/انتشار-اندروید.md)
 - GitHub upload instructions:
   [docs/پوش-به-گیتهاب.md](docs/پوش-به-گیتهاب.md)
 
-`tools/package_deployment.sh` builds a same-origin Web/API bundle. It does not
-upload anything or alter an external account. `tools/build_signed_apk.sh`
+`tools/package_heliohost.sh` builds a same-origin Web/API bundle with HelioHost's
+`httpdocs` layout. It does not upload anything or alter an external account. `tools/build_signed_apk.sh`
 requires your own durable application ID and signing key and never permits a
 debug-signing fallback.
 

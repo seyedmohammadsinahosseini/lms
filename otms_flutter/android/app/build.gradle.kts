@@ -31,7 +31,7 @@ extensions.configure<ApplicationExtension> {
         // Override for a public release with OTMS_APPLICATION_ID, for example
         // io.github.yourname.otms. The signed-build helper requires an override.
         applicationId = System.getenv("OTMS_APPLICATION_ID") ?: "app.otms.portfolio"
-        minSdk = 24 // Required by jitsi_meet_flutter_sdk.
+        minSdk = 26 // Required by jitsi-meet-sdk 13.2.0.
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

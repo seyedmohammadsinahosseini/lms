@@ -2,7 +2,12 @@
 
 **تاریخ:** ۲۰۲۶-۱۰-۰۲
 **مبنای بررسی:** شاخهٔ `main`، کامیت `c89f74a`
-**وضعیت:** این سند برنامهٔ اجرایی است؛ هیچ فایل اصلی برنامه یا دیتابیس هنوز تغییر نکرده است.
+**وضعیت اولیه:** این سند پیش از اجرای اصلاحات نوشته شده بود.
+
+> **به‌روزرسانی ۲۰۲۶-۱۰-۰۳:** اصلاحات برنامه اجرا شده‌اند. به‌دلیل نیاز
+> Alwaysdata به روشی از پرداخت/تأیید که برای مالک قابل استفاده نبود، مقصد رایگان
+> با تصمیم مالک به **HelioHost Johnny** تغییر کرد. راهنمای اجرایی جاری در
+> `docs/استقرار-رایگان.md` و وضعیت واقعی در `IMPLEMENTATION_PROGRESS_FA.md` است.
 
 این سند نتیجهٔ نهایی دو گزارش قبلی است:
 
@@ -38,13 +43,17 @@
 
 برای ساده‌ترین deployment متناسب با PHP/MySQL فعلی، پیشنهاد اول برای **دموی رزومه** این است:
 
-- Flutter Web + PHP API روی یک PHP Site رایگان در **alwaysdata**
-- MariaDB مدیریت‌شده در همان حساب
-- دامنهٔ رایگان `username.alwaysdata.net`
+- Flutter Web + PHP API روی حساب رایگان **HelioHost Johnny**
+- MariaDB در همان حساب Plesk
+- دامنهٔ رایگان `project.helioho.st`
+- config و upload خصوصی در home حساب، خارج از `httpdocs`
 - APK روی یک GitHub Release عمومی
 - در صورت نیاز، Firebase App Distribution فقط برای تسترهای دعوت‌شده
 
-قرار گرفتن وب و API روی یک origin، CORS و deployment را ساده‌تر می‌کند. پلن رایگان alwaysdata محدود است و برای محصول واقعی توصیه نمی‌شود، اما برای دموی کم‌ترافیک مناسب‌تر از سرویس‌هایی است که صریحاً API موبایل را در free hosting خود پشتیبانی نمی‌کنند.
+قرار گرفتن Web و API روی یک origin، CORS و deployment را ساده‌تر می‌کند و API
+HTTPS همان دامنه برای Android هم قابل استفاده است. InfinityFree برای نسخهٔ کامل
+انتخاب نشد، چون چالش اجباری مرورگر، API موبایل را مسدود می‌کند و private storage
+خارج از `htdocs` را نمی‌پذیرد.
 
 ## نتیجهٔ مهم
 
@@ -133,7 +142,7 @@ PHP/MySQL به‌تنهایی media server نیست. برای اینکه این 
 2. فقط استاد همان کلاس بتواند جلسه را شروع/تمام کند.
 3. دانش‌آموز فقط در صورت عضویت در کلاس join token بگیرد.
 4. secret سرویس Live فقط در backend باشد؛ کلاینت هیچ secretی نداشته باشد.
-5. روی Android از Jitsi Flutter SDK استفاده شود؛ روی Web از integration رسمی وب یا باز کردن اتاق محافظت‌شده استفاده شود. SDK رسمی فعلی Jitsi برای Android حداقل `minSdk 24` می‌خواهد؛ اگر پشتیبانی Android قدیمی‌تر الزام باشد، به‌جای SDK از fallback مرورگر استفاده شود.
+5. روی Android از Jitsi Flutter SDK استفاده شود؛ روی Web از integration رسمی وب یا باز کردن اتاق محافظت‌شده استفاده شود. نسخهٔ فعلی dependency بومی Jitsi حداقل `minSdk 26` می‌خواهد؛ اگر پشتیبانی Android قدیمی‌تر الزام باشد، به‌جای SDK از fallback مرورگر استفاده شود.
 6. برای دموی رایگان می‌توان از JaaS Dev استفاده کرد که در زمان نگارش ۲۵ کاربر فعال ماهانهٔ رایگان اعلام کرده است. اگر quota تمام شد، UI باید خطای واقعی «ظرفیت دموی Live تمام شده» نشان دهد، نه موفقیت ساختگی.
 7. برای production باید JaaS پولی، LiveKit Cloud/سرویس مشابه، یا Jitsi self-hosted با منابع کافی انتخاب شود.
 
@@ -515,97 +524,61 @@ controllerها dispose شوند و lifecycle overlay بدون `setState` در di
 
 # ۶) استقرار رایگان، مرحله‌به‌مرحله
 
-## ۶.۱. چرا alwaysdata برای این دمو؟
+## ۶.۱. چرا HelioHost Johnny؟
 
-در زمان نگارش، پلن رایگان alwaysdata حدود ۱GB فضا و ۲۵۶MB RAM ارائه می‌کند، سایت PHP و MariaDB/MySQL مدیریت‌شده دارد، SSH/SFTP ارائه می‌دهد و آدرس `alwaysdata.net` دارای HTTPS است. محدودیت‌های پلن رایگان، از جمله آدرس خود سرویس، نبود service daemon و منع استفادهٔ سودآور، باید رعایت شوند.
+حساب رایگان Johnny بدون کارت، PHP 8، MariaDB، Plesk، FTP، SSL رایگان و حدود
+۱۰۰۰ MB فضای مشترک ارائه می‌کند. برخلاف InfinityFree، معماری آن API را پشت چالش
+اجباری JavaScript مرورگر قرار نمی‌دهد و PHP می‌تواند config و storage را در home
+همان حساب و بیرون `httpdocs` نگه دارد.
 
-این deployment یک **PHP Site** معمولی است؛ media server یا daemon روی alwaysdata اجرا نمی‌شود. Live به سرویس WebRTC بیرونی متصل است.
+## ۶.۲. حساب و دیتابیس
 
-## ۶.۲. ساخت حساب و دیتابیس
+1. در `heliohost.org/signup` سرور رایگان Johnny انتخاب شود.
+2. ظرفیت ثبت‌نام در 00:00 و 12:00 UTC باز می‌شود.
+3. پس از فعال‌شدن Plesk، یک MariaDB database و user ساخته شود.
+4. remote DB خاموش بماند و PHP با host محلی متصل شود.
+5. `schema.sql` از phpMyAdmin در database خالی import شود.
 
-1. حساب رایگان alwaysdata بسازید.
-2. از بخش `Databases > MySQL` یک database و user بسازید.
-3. نام host، database، user و password را یادداشت کنید؛ database فقط از پنل/API ساخته می‌شود.
-4. فایل migration بدون `CREATE DATABASE` و `USE` را از phpMyAdmin یا SSH import کنید.
-5. charset را `utf8mb4` قرار دهید.
-
-نمونهٔ اتصال SSH برای import:
-
-```bash
-mysql -h mysql-USERNAME.alwaysdata.net \
-  -u DB_USER -p DB_NAME < migrations/combined.sql
-```
-
-## ۶.۳. ساخت سایت PHP
-
-1. در `Web > Sites` یک سایت از نوع PHP بسازید.
-2. نسخهٔ PHP آزمایش‌شده، ترجیحاً 8.3 یا نسخهٔ pin‌شده، انتخاب شود.
-3. document root فقط پوشهٔ public باشد؛ نمونه:
+## ۶.۳. ساختار حساب
 
 ```text
-/home/USERNAME/www/otms/public
-```
-
-4. Force HTTPS فعال شود.
-5. `display_errors=Off`, `log_errors=On`, timezone مناسب و upload limit تنظیم شود.
-
-ساختار سرور:
-
-```text
-/home/USERNAME/www/otms/
-  app/                    # source/deployment metadata، خارج public
-  config/otms.env         # secret، permission 600، خارج public
-  storage/uploads/        # فایل کاربران، خارج public
-  public/
+/home/PLESK-HOME/
+  config/otms.env         # secret، خارج webroot
+  storage/uploads/        # فایل خصوصی، خارج webroot
+  tools/                  # ابزار دعوت معلم
+  httpdocs/
     index.html            # Flutter Web build
     assets/
     api/v1/*.php          # PHP endpoints
 ```
 
-Credential دیتابیس و JaaS در Git یا Flutter قرار نگیرد. config از environment یا فایل فقط‌خواندنی خارج public خوانده شود.
+Credential دیتابیس و JaaS در Git یا Flutter قرار نگیرد. محدودیت `open_basedir`
+HelioHost دسترسی را به home همان حساب محدود می‌کند که با این ساختار سازگار است.
 
-## ۶.۴. تنظیم URL محیط‌ها
+## ۶.۴. build و بسته‌بندی
 
-در Flutter:
-
-```dart
-const apiBaseUrl = String.fromEnvironment(
-  'OTMS_API_BASE',
-  defaultValue: '/api/v1',
-);
-```
-
-سه config مستقل:
-
-- local debug
-- portfolio demo
-- production
-
-هیچ URL ثابت LAN یا localhost وارد release نشود.
-
-## ۶.۵. build وب
-
-روی سیستم دارای نسخهٔ pin‌شدهٔ Flutter:
+پس از مشخص‌شدن دامنه:
 
 ```bash
-cd otms_flutter
-flutter clean
-flutter pub get
-flutter analyze
-flutter test
-flutter build web --release \
-  --base-href=/ \
-  --dart-define=OTMS_API_BASE=https://USERNAME.alwaysdata.net/api/v1 \
-  --dart-define=OTMS_APP_MODE=portfolio_demo
+OTMS_API_BASE=https://PROJECT.helioho.st/api/v1 \
+  bash tools/package_heliohost.sh
 ```
 
-محتوای `build/web/` در `public/` قرار گیرد؛ پوشهٔ `api` overwrite نشود. برای routeهای وب، fallback به `index.html` فقط برای مسیرهای غیر API تنظیم شود.
+این اسکریپت analyze/test و Web release را از مسیر build اجرا کرده و ساختار
+`deploy-heliohost` شامل `httpdocs`، `config`، `storage` و schema را می‌سازد.
+فایل‌ها از Plesk File Manager یا FTP آپلود می‌شوند؛ حساب shared رایگان SSH ندارد.
+
+## ۶.۵. SSL و URL محیط‌ها
+
+در Plesk ابتدا SSL رایگان با SSL It!/Let's Encrypt صادر شود و سپس redirect اجباری
+HTTPS فعال گردد. release باید دقیقاً با URL نهایی `/api/v1` ساخته شود و هیچ
+localhost یا LAN URL در آن نباشد.
 
 ## ۶.۶. تست پس از استقرار
 
 حداقل این‌ها اجرا شوند:
 
-1. `/api/v1/health` نسخهٔ app، DB status بدون secret و زمان server را بدهد.
+1. `/api/v1/health.php` وضعیت app و DB را بدون secret بدهد.
 2. شروع sandbox دمو
 3. ورود استاد و دانش‌آموز
 4. join با grant
@@ -614,22 +587,18 @@ flutter build web --release \
 7. start/submit/result assessment و policy جواب
 8. submit/resubmit/grade homework
 9. Q&A دوطرفه
-10. شروع/join Live
+10. شروع/join Live در صورت وجود JaaS
 11. فایل مجاز و تست 403 کلاس دیگر
 12. responsive test روی عرض ۳۶۰px
+13. درخواست API از Android روی HTTPS
 
-## ۶.۷. CI/CD بعد از اولین deployment دستی
+## ۶.۷. محدودیت و deployment بعدی
 
-پس از سالم شدن deployment دستی، GitHub Actions:
-
-1. testها را اجرا کند.
-2. web release را بسازد.
-3. با SFTP/SSH key محدود، artifact را در staging upload کند.
-4. migrationها را با backup و lock اجرا کند.
-5. smoke test را اجرا کند.
-6. با symlink/current directory یا روش atomic، staging را active کند.
-
-secretهای SSH/DB در GitHub Secrets باشند؛ هیچ password داخل workflow یا repository نباشد.
+Johnny حدود ۱۰۰۰ MB فضای کل و محدودیت مصرف روزانه دارد و برای دموی رزومه مناسب
+است، نه محصول پرترافیک. backup باید از Plesk دانلود و از حساب حذف شود تا quota
+پر نشود. deployment اولیه دستی است؛ پس از تأیید می‌توان Plesk Git integration
+یا FTP محدود را برای به‌روزرسانی کنترل‌شده به کار برد. راهنمای جاری و دقیق در
+`docs/استقرار-رایگان.md` است.
 
 ---
 
@@ -662,7 +631,7 @@ keytool -genkeypair -v \
 
 ```bash
 flutter build apk --release \
-  --dart-define=OTMS_API_BASE=https://USERNAME.alwaysdata.net/api/v1 \
+  --dart-define=OTMS_API_BASE=https://PROJECT.helioho.st/api/v1 \
   --dart-define=OTMS_APP_MODE=portfolio_demo
 ```
 
@@ -785,7 +754,7 @@ OTMS-demo-v1.0.0-android.apk
 ## فاز چهار — دمو و انتشار، حدود ۲ تا ۴ روز
 
 - demo sandbox
-- alwaysdata deployment
+- HelioHost Johnny deployment
 - web smoke test روی گوشی
 - signed APK و GitHub Release
 - README، screenshot، QR و ویدیوی کوتاه
@@ -816,11 +785,12 @@ OTMS-demo-v1.0.0-android.apk
 
 # ۱۲) منابع رسمی مرتبط با تصمیم میزبانی و انتشار
 
-- alwaysdata Free و محدودیت‌ها: https://help.alwaysdata.com/en/docs/admin-billing/billing/public-cloud-prices/
-- PHP در alwaysdata: https://help.alwaysdata.com/en/languages/php/configuration/
-- MariaDB/MySQL در alwaysdata: https://help.alwaysdata.com/en/docs/web-hosting/databases/mariadb/
-- HTTPS خودکار alwaysdata: https://help.alwaysdata.com/en/security/ssl-tls/lets-encrypt/
-- SSH alwaysdata: https://help.alwaysdata.com/en/docs/web-hosting/remote-access/ssh/
+- ثبت‌نام رایگان HelioHost Johnny: https://wiki.helionet.org/Signing_Up
+- امکانات حساب: https://wiki.helionet.org/What_HelioHost_Offers
+- PHP: https://wiki.helionet.org/PHP
+- MariaDB: https://wiki.helionet.org/MariaDB
+- SSL رایگان: https://wiki.helionet.org/Using_SSL
+- محدودیت open_basedir: https://wiki.helionet.org/Open_Basedir_Restriction
 - GitHub Pages و نبود پشتیبانی PHP: https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site
 - Firebase Hosting: https://firebase.google.com/products/hosting
 - Firebase App Distribution: https://firebase.google.com/products/app-distribution
@@ -841,7 +811,7 @@ OTMS-demo-v1.0.0-android.apk
 2. تبدیل تمام UIهای ساختگی/قدیمی به feature فعال واقعی؛
 3. Android-first کردن Flutter و ساخت Web responsive از همان codebase؛
 4. اضافه کردن assessment lifecycle، file authorization و demo sandbox؛
-5. انتشار رایگان وب+API روی alwaysdata برای رزومه؛
+5. انتشار رایگان وب+API روی HelioHost Johnny برای رزومه؛
 6. انتشار APK امضاشده در GitHub Release؛
 7. مهاجرت به زیرساخت پولی و دارای SLA فقط هنگام ورود کاربران و دادهٔ واقعی.
 

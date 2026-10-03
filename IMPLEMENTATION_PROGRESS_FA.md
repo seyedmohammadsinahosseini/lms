@@ -30,24 +30,25 @@
 - مجموعهٔ lifecycle با **۴۸ تست از ۴۸ تست موفق** روی مسیر نسخهٔ `api/v1` اجرا شد.
 - مجموعهٔ امنیتی با **۲۲ تست از ۲۲ تست موفق** اجرا شد.
 - `flutter analyze` بدون issue و هر **۲۴ تست Flutter** موفق بوده‌اند.
-- Web debug پس از آخرین تغییرات ساخته و با Playwright در viewport گوشی بدون
-  خطای runtime/asset smoke-test شده است. دو build نوع release در sandbox به‌دلیل kill شدن
-  `dart2js` با کمبود منابع تمام نشدند، نه خطای سورس.
-- سه تلاش Android در sandbox به‌دلیل فشار RAM/زمان artifact نساختند؛ CI اکنون
-  build Android debug و Web release را اجباری می‌کند.
+- Web debug با Playwright در viewport گوشی بدون خطای runtime/asset smoke-test شد.
+- **Web release در GitHub Actions با موفقیت ساخته شد**؛ محدودیت local sandbox
+  دیگر مانع تأیید release Web نیست.
+- اولین Android CI به‌دلیل DSL منسوخ AGP 9 fail شد و پس از اصلاح تا مرحلهٔ
+  manifest پیش رفت. اجرای دوم نیاز واقعی Jitsi به minSdk 26 و تعارض label را
+  آشکار کرد؛ هر دو اصلاح شده‌اند و rerun بعدی لازم است. هنوز APK تأیید نشده است.
 
 ## خروجی‌های آماده
 
 - `.github/workflows/ci.yml`: PHP/schema/migration/API/security، Flutter، Web و Android
 - `.github/workflows/release-android.yml`: ساخت و verify کردن APK امضاشده و GitHub Release
-- `tools/package_deployment.sh`: بستهٔ هم‌دامنهٔ Alwaysdata
+- `tools/package_heliohost.sh`: بستهٔ هم‌دامنهٔ مخصوص HelioHost/Plesk
 - `tools/build_signed_apk.sh`: APK universal با SHA-256 و بدون debug-sign fallback
 - `docs/استقرار-رایگان.md`: راهنمای سادهٔ استقرار دمو
 - `docs/انتشار-اندروید.md`: راهنمای keystore، secretها و release
 
 ## موارد بیرونی باقیمانده
 
-1. ساخت حساب Alwaysdata، database و آدرس عمومی HTTPS
+1. ساخت حساب رایگان HelioHost Johnny، database و آدرس عمومی HTTPS
 2. انتخاب application ID نهایی
 3. ساخت و backup کردن keystore و افزودن GitHub Secrets
 4. در صورت نیاز به Live تولیدی، دریافت credentialهای JaaS
