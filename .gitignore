@@ -36,6 +36,7 @@ node_modules/
 .signing/
 /deploy-package/
 /deploy-heliohost/
+/deploy-serv00/
 /releases/
 /storage/uploads/*
 !/storage/uploads/.gitignore

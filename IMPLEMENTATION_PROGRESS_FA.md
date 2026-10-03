@@ -2,7 +2,7 @@
 
 **شاخه:** `feat/full-remediation`
 **مبنای شروع:** `c89f74a`
-**تاریخ به‌روزرسانی:** ۱۴۰۵/۰۷/۱۰ (2026-10-02)
+**تاریخ به‌روزرسانی:** ۱۴۰۵/۰۷/۱۱ (2026-10-03)
 **قاعده:** هیچ قابلیت موردنیاز حذف نشده است؛ اصلاح باید قابلیت را واقعاً قابل استفاده کند.
 
 ## مراحل
@@ -36,19 +36,22 @@
 - اولین Android CI به‌دلیل DSL منسوخ AGP 9 fail شد و پس از اصلاح تا مرحلهٔ
   manifest پیش رفت. اجرای دوم نیاز واقعی Jitsi به minSdk 26 و تعارض label را
   آشکار کرد؛ هر دو اصلاح شده‌اند و rerun بعدی لازم است. هنوز APK تأیید نشده است.
+- به‌دلیل پر بودن ظرفیت روزانهٔ HelioHost، مالک Serv00 را به‌عنوان مقصد رایگان
+  انتخاب کرد؛ بسته و راهنمای Serv00 با PHP 8.3، MySQL 8، SSL و SSH آماده شده است.
 
 ## خروجی‌های آماده
 
 - `.github/workflows/ci.yml`: PHP/schema/migration/API/security، Flutter، Web و Android
 - `.github/workflows/release-android.yml`: ساخت و verify کردن APK امضاشده و GitHub Release
-- `tools/package_heliohost.sh`: بستهٔ هم‌دامنهٔ مخصوص HelioHost/Plesk
+- `tools/package_serv00.sh`: بستهٔ هم‌دامنهٔ مخصوص Serv00 با `public_html` و private storage
+- `tools/package_heliohost.sh`: fallback آماده برای HelioHost/Plesk
 - `tools/build_signed_apk.sh`: APK universal با SHA-256 و بدون debug-sign fallback
-- `docs/استقرار-رایگان.md`: راهنمای سادهٔ استقرار دمو
+- `docs/استقرار-رایگان.md`: راهنمای سادهٔ استقرار دمو روی Serv00
 - `docs/انتشار-اندروید.md`: راهنمای keystore، secretها و release
 
 ## موارد بیرونی باقیمانده
 
-1. ساخت حساب رایگان HelioHost Johnny، database و آدرس عمومی HTTPS
+1. تأیید درخواست حساب رایگان Serv00 و دریافت Login/Server/Domain، سپس ساخت MySQL و HTTPS
 2. انتخاب application ID نهایی
 3. ساخت و backup کردن keystore و افزودن GitHub Secrets
 4. در صورت نیاز به Live تولیدی، دریافت credentialهای JaaS

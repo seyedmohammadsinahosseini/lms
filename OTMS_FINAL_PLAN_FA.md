@@ -4,10 +4,11 @@
 **مبنای بررسی:** شاخهٔ `main`، کامیت `c89f74a`
 **وضعیت اولیه:** این سند پیش از اجرای اصلاحات نوشته شده بود.
 
-> **به‌روزرسانی ۲۰۲۶-۱۰-۰۳:** اصلاحات برنامه اجرا شده‌اند. به‌دلیل نیاز
-> Alwaysdata به روشی از پرداخت/تأیید که برای مالک قابل استفاده نبود، مقصد رایگان
-> با تصمیم مالک به **HelioHost Johnny** تغییر کرد. راهنمای اجرایی جاری در
-> `docs/استقرار-رایگان.md` و وضعیت واقعی در `IMPLEMENTATION_PROGRESS_FA.md` است.
+> **به‌روزرسانی ۲۰۲۶-۱۰-۰۳:** اصلاحات برنامه اجرا شده‌اند. Alwaysdata به‌دلیل
+> الزام پرداخت/تأیید غیرقابل استفاده و InfinityFree به‌دلیل مسدودکردن API موبایل
+> کنار گذاشته شدند. پس از پرشدن ظرفیت روزانهٔ HelioHost Johnny، مالک **Serv00**
+> را انتخاب کرد. راهنمای اجرایی جاری در `docs/استقرار-رایگان.md` و وضعیت واقعی
+> در `IMPLEMENTATION_PROGRESS_FA.md` است.
 
 این سند نتیجهٔ نهایی دو گزارش قبلی است:
 
@@ -43,10 +44,10 @@
 
 برای ساده‌ترین deployment متناسب با PHP/MySQL فعلی، پیشنهاد اول برای **دموی رزومه** این است:
 
-- Flutter Web + PHP API روی حساب رایگان **HelioHost Johnny**
-- MariaDB در همان حساب Plesk
-- دامنهٔ رایگان `project.helioho.st`
-- config و upload خصوصی در home حساب، خارج از `httpdocs`
+- Flutter Web + PHP API روی حساب رایگان **Serv00**
+- MySQL 8 در همان حساب و مدیریت از DevilWEB/phpMyAdmin
+- دامنهٔ رایگان `LOGIN.serv00.net`
+- config و upload خصوصی کنار domain root و خارج از `public_html`
 - APK روی یک GitHub Release عمومی
 - در صورت نیاز، Firebase App Distribution فقط برای تسترهای دعوت‌شده
 
@@ -524,55 +525,63 @@ controllerها dispose شوند و lifecycle overlay بدون `setState` در di
 
 # ۶) استقرار رایگان، مرحله‌به‌مرحله
 
-## ۶.۱. چرا HelioHost Johnny؟
+## ۶.۱. چرا Serv00؟
 
-حساب رایگان Johnny بدون کارت، PHP 8، MariaDB، Plesk، FTP، SSL رایگان و حدود
-۱۰۰۰ MB فضای مشترک ارائه می‌کند. برخلاف InfinityFree، معماری آن API را پشت چالش
-اجباری JavaScript مرورگر قرار نمی‌دهد و PHP می‌تواند config و storage را در home
-همان حساب و بیرون `httpdocs` نگه دارد.
+Serv00 رایگان و بدون تبلیغ است و PHP 8.3، MySQL 8، SSL رایگان، SFTP/SSH، ۳ GB
+فضای SSD، ۵۱۲ MB RAM و subdomain نوع `LOGIN.serv00.net` ارائه می‌کند. برخلاف
+InfinityFree، PoW/browser challenge اختیاری است و برای OTMS خاموش نگه داشته
+می‌شود تا API از Android نیز قابل فراخوانی باشد. config و storage می‌توانند در
+ریشهٔ private دامنه و بیرون `public_html` قرار بگیرند.
 
 ## ۶.۲. حساب و دیتابیس
 
-1. در `heliohost.org/signup` سرور رایگان Johnny انتخاب شود.
-2. ظرفیت ثبت‌نام در 00:00 و 12:00 UTC باز می‌شود.
-3. پس از فعال‌شدن Plesk، یک MariaDB database و user ساخته شود.
-4. remote DB خاموش بماند و PHP با host محلی متصل شود.
-5. `schema.sql` از phpMyAdmin در database خالی import شود.
+1. در `serv00.com/register-account` درخواست رایگان ثبت شود.
+2. درخواست دستی بررسی می‌شود و ممکن است چند ساعت تا ۷۲ ساعت زمان ببرد.
+3. ایمیل فعال‌سازی Login، Server، DevilWEB panel و دامنه را اعلام می‌کند.
+4. در DevilWEB یک MySQL database و user مجزا ساخته شود.
+5. host دیتابیس از شمارهٔ server ساخته می‌شود؛ مثلاً `s12` از
+   `mysql12.serv00.com` استفاده می‌کند.
+6. `schema.sql` از phpMyAdmin یا SSH در database خالی import شود.
 
 ## ۶.۳. ساختار حساب
 
 ```text
-/home/PLESK-HOME/
+/usr/home/LOGIN/domains/DOMAIN/
   config/otms.env         # secret، خارج webroot
   storage/uploads/        # فایل خصوصی، خارج webroot
   tools/                  # ابزار دعوت معلم
-  httpdocs/
+  .user.ini               # تنظیم PHP همان دامنه
+  schema.sql              # خارج webroot
+  public_html/
     index.html            # Flutter Web build
     assets/
     api/v1/*.php          # PHP endpoints
 ```
 
-Credential دیتابیس و JaaS در Git یا Flutter قرار نگیرد. محدودیت `open_basedir`
-HelioHost دسترسی را به home همان حساب محدود می‌کند که با این ساختار سازگار است.
+Credential دیتابیس و JaaS در Git یا Flutter قرار نگیرد. Open Basedir سایت باید
+domain root و `/tmp` را اجازه دهد و PoW سایت خاموش باشد.
 
 ## ۶.۴. build و بسته‌بندی
 
-پس از مشخص‌شدن دامنه:
+پس از دریافت اطلاعات حساب:
 
 ```bash
-OTMS_API_BASE=https://PROJECT.helioho.st/api/v1 \
-  bash tools/package_heliohost.sh
+OTMS_SERV00_LOGIN=LOGIN \
+OTMS_SERV00_SERVER=s12.serv00.com \
+OTMS_SERV00_DOMAIN=LOGIN.serv00.net \
+OTMS_API_BASE=https://LOGIN.serv00.net/api/v1 \
+  bash tools/package_serv00.sh
 ```
 
-این اسکریپت analyze/test و Web release را از مسیر build اجرا کرده و ساختار
-`deploy-heliohost` شامل `httpdocs`، `config`، `storage` و schema را می‌سازد.
-فایل‌ها از Plesk File Manager یا FTP آپلود می‌شوند؛ حساب shared رایگان SSH ندارد.
+اسکریپت dependencies و Web release را build می‌کند و ساختار `deploy-serv00`
+شامل `public_html`، `config`، `storage`، `.user.ini` و schema را می‌سازد. فایل‌ها
+با SFTP یا SSH به domain root انتقال داده می‌شوند.
 
 ## ۶.۵. SSL و URL محیط‌ها
 
-در Plesk ابتدا SSL رایگان با SSL It!/Let's Encrypt صادر شود و سپس redirect اجباری
-HTTPS فعال گردد. release باید دقیقاً با URL نهایی `/api/v1` ساخته شود و هیچ
-localhost یا LAN URL در آن نباشد.
+در DevilWEB ابتدا SSL رایگان Let's Encrypt صادر و سپس Force SSL فعال شود. release
+باید دقیقاً با URL نهایی `/api/v1` ساخته شود و هیچ localhost یا LAN URL در آن
+نباشد. host cache در استقرار اولیه خاموش بماند تا رفتار API قابل بررسی باشد.
 
 ## ۶.۶. تست پس از استقرار
 
@@ -590,14 +599,14 @@ localhost یا LAN URL در آن نباشد.
 10. شروع/join Live در صورت وجود JaaS
 11. فایل مجاز و تست 403 کلاس دیگر
 12. responsive test روی عرض ۳۶۰px
-13. درخواست API از Android روی HTTPS
+13. درخواست API از Android روی HTTPS و تأیید پاسخ JSON بدون browser challenge
 
 ## ۶.۷. محدودیت و deployment بعدی
 
-Johnny حدود ۱۰۰۰ MB فضای کل و محدودیت مصرف روزانه دارد و برای دموی رزومه مناسب
-است، نه محصول پرترافیک. backup باید از Plesk دانلود و از حساب حذف شود تا quota
-پر نشود. deployment اولیه دستی است؛ پس از تأیید می‌توان Plesk Git integration
-یا FTP محدود را برای به‌روزرسانی کنترل‌شده به کار برد. راهنمای جاری و دقیق در
+Serv00 برای دموی رزومه مناسب است، نه محصول پرترافیک یا دادهٔ حساس واقعی. حسابی
+که ۹۰ روز به DevilWEB یا SSH login نداشته باشد ممکن است حذف شود؛ backup مستقل و
+login ماهانه لازم است. deployment اولیه با SFTP انجام می‌شود و برای updateهای
+بعدی SSH/Git نیز در دسترس است. راهنمای جاری و دقیق در
 `docs/استقرار-رایگان.md` است.
 
 ---
@@ -631,7 +640,7 @@ keytool -genkeypair -v \
 
 ```bash
 flutter build apk --release \
-  --dart-define=OTMS_API_BASE=https://PROJECT.helioho.st/api/v1 \
+  --dart-define=OTMS_API_BASE=https://LOGIN.serv00.net/api/v1 \
   --dart-define=OTMS_APP_MODE=portfolio_demo
 ```
 
@@ -754,7 +763,7 @@ OTMS-demo-v1.0.0-android.apk
 ## فاز چهار — دمو و انتشار، حدود ۲ تا ۴ روز
 
 - demo sandbox
-- HelioHost Johnny deployment
+- Serv00 deployment
 - web smoke test روی گوشی
 - signed APK و GitHub Release
 - README، screenshot، QR و ویدیوی کوتاه
@@ -785,12 +794,14 @@ OTMS-demo-v1.0.0-android.apk
 
 # ۱۲) منابع رسمی مرتبط با تصمیم میزبانی و انتشار
 
-- ثبت‌نام رایگان HelioHost Johnny: https://wiki.helionet.org/Signing_Up
-- امکانات حساب: https://wiki.helionet.org/What_HelioHost_Offers
-- PHP: https://wiki.helionet.org/PHP
-- MariaDB: https://wiki.helionet.org/MariaDB
-- SSL رایگان: https://wiki.helionet.org/Using_SSL
-- محدودیت open_basedir: https://wiki.helionet.org/Open_Basedir_Restriction
+- ثبت‌نام رایگان Serv00: https://www.serv00.com/register-account/
+- امکانات حساب و محدودیت‌ها: https://www.serv00.com/
+- پنل DevilWEB: https://docs.serv00.com/DevilWEB/
+- سایت PHP و domain root: https://docs.serv00.com/WWW/
+- PHP و `.user.ini`: https://docs.serv00.com/PHP/
+- MySQL و import: https://docs.serv00.com/MySQL/
+- SSL رایگان: https://docs.serv00.com/SSL/
+- ورود SSH/SFTP: https://docs.serv00.com/Login/
 - GitHub Pages و نبود پشتیبانی PHP: https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site
 - Firebase Hosting: https://firebase.google.com/products/hosting
 - Firebase App Distribution: https://firebase.google.com/products/app-distribution
@@ -811,7 +822,7 @@ OTMS-demo-v1.0.0-android.apk
 2. تبدیل تمام UIهای ساختگی/قدیمی به feature فعال واقعی؛
 3. Android-first کردن Flutter و ساخت Web responsive از همان codebase؛
 4. اضافه کردن assessment lifecycle، file authorization و demo sandbox؛
-5. انتشار رایگان وب+API روی HelioHost Johnny برای رزومه؛
+5. انتشار رایگان وب+API روی Serv00 برای رزومه؛
 6. انتشار APK امضاشده در GitHub Release؛
 7. مهاجرت به زیرساخت پولی و دارای SLA فقط هنگام ورود کاربران و دادهٔ واقعی.
 

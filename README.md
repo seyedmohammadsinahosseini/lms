@@ -160,15 +160,17 @@ The migration is intentionally one-way. Recovery means restoring the backup.
 
 ## Deployment and releases
 
-- Free portfolio deployment on HelioHost Johnny:
+- Free portfolio deployment on Serv00:
   [docs/استقرار-رایگان.md](docs/استقرار-رایگان.md)
 - Signed universal Android APK and SHA-256:
   [docs/انتشار-اندروید.md](docs/انتشار-اندروید.md)
 - GitHub upload instructions:
   [docs/پوش-به-گیتهاب.md](docs/پوش-به-گیتهاب.md)
 
-`tools/package_heliohost.sh` builds a same-origin Web/API bundle with HelioHost's
-`httpdocs` layout. It does not upload anything or alter an external account. `tools/build_signed_apk.sh`
+`tools/package_serv00.sh` builds a same-origin Web/API bundle with Serv00's
+`domains/DOMAIN/public_html` layout and keeps config, uploads and CLI tools outside
+the webroot. It does not upload anything or alter an external account. The older
+`tools/package_heliohost.sh` remains available as a fallback. `tools/build_signed_apk.sh`
 requires your own durable application ID and signing key and never permits a
 debug-signing fallback.
 

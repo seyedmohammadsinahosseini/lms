@@ -51,9 +51,9 @@ Require all denied
 HTACCESS
 cat >"$OUT/DEPLOY.txt" <<EOF
 1. Copy $WEBROOT_NAME/ to your site's document root.
-2. Copy config/ and storage/ to the account home, one directory above the document root.
+2. Copy config/ and storage/ to the private parent of the document root.
 3. Rename config/otms.env.example to config/otms.env and fill every secret.
-4. Import schema.sql into an EMPTY managed MariaDB database.
+4. Import schema.sql into an EMPTY managed MySQL 8 or MariaDB database.
 5. Force HTTPS for the site.
 6. Open $OTMS_API_BASE/health.php, then create an isolated demo from the app.
 EOF

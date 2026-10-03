@@ -33,8 +33,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y php-cli php-mysql php-mbstring mariadb-client jq curl
-      - name: PHP syntax
-        run: find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: PHP and shell syntax
+        run: |
+          find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          bash -n tools/*.sh
       - name: Import fresh schema and security schema
         env:
           MYSQL_PWD: root
