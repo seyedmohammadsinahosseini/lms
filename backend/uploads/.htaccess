@@ -8,7 +8,7 @@
 #
 # NOTE: .htaccess is Apache-only. On nginx add the equivalent to the server
 # block, e.g.:
-#   location ^~ /OTMS1/backend/uploads/ {
+#   location ^~ /lms/backend/uploads/ {
 #       location ~ \.(php|phtml|phar|html|svg)$ { deny all; }
 #       autoindex off;
 #   }

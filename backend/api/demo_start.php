@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 require_method('POST');
-if (!otms_demo_mode()) fail('Demo mode is disabled.', 404, 'NOT_FOUND');
+if (!lms_demo_mode()) fail('Demo mode is disabled.', 404, 'NOT_FOUND');
 enforce_rate_limit('demo_start', client_ip(), 3, 3600, 3600);
 
 // Delete expired sandboxes and their physical uploads before creating another.
@@ -11,7 +11,7 @@ $stmt = db()->query(
      JOIN demo_sessions d ON d.id = u.demo_session_id WHERE d.expires_at <= UTC_TIMESTAMP()'
 );
 foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $storageName) {
-    @unlink(otms_storage_path() . DIRECTORY_SEPARATOR . basename((string)$storageName));
+    @unlink(lms_storage_path() . DIRECTORY_SEPARATOR . basename((string)$storageName));
 }
 db()->exec('DELETE FROM demo_sessions WHERE expires_at <= UTC_TIMESTAMP()');
 

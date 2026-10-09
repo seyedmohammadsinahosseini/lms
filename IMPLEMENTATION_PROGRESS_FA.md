@@ -1,58 +1,61 @@
-# برنامه و وضعیت اجرای اصلاحات OTMS
+# برنامه و وضعیت اجرای LMS
 
-**شاخه:** `feat/full-remediation`
-**مبنای شروع:** `c89f74a`
-**تاریخ به‌روزرسانی:** ۱۴۰۵/۰۷/۱۱ (2026-10-03)
-**قاعده:** هیچ قابلیت موردنیاز حذف نشده است؛ اصلاح باید قابلیت را واقعاً قابل استفاده کند.
+**شاخهٔ انتشار:** `portfolio/lms-rebrand`
+**مبنای این مرحله:** `ce11318`
+**تاریخ به‌روزرسانی:** ۱۴۰۵/۰۷/۱۷ (2026-10-09)
+**قاعده:** هیچ قابلیت موردنیاز حذف یا پنهان نشده است؛ هر اصلاح باید قابلیت را واقعاً قابل استفاده نگه دارد.
 
-## مراحل
+## مراحل انجام‌شده
 
-- [x] ۰. ساخت شاخه، ثبت baseline و حذف remote حساس
+- [x] ۰. ثبت baseline و نگه‌داشتن تاریخچهٔ کامل تغییرات
 - [x] ۱. زیرساخت backend: خطای استاندارد، validation، token hash، rate limit، audit و migration
 - [x] ۲. عضویت امن با grant یک‌بارمصرف، فایل خصوصی، signed URL و transaction
-- [x] ۳. lifecycle/versioning آزمون، snapshot، زمان‌بندی و انواع سؤال
+- [x] ۳. lifecycle/versioning آزمون، snapshot، زمان‌بندی و شش نوع سؤال
 - [x] ۴. نسخه‌بندی تکلیف، deadline/late/resubmit و feedback
 - [x] ۵. Profile/password، داشبورد واقعی، Q&A و زیرساخت Live session
-- [x] ۶. Flutter phone-first responsive و اتصال همهٔ مسیرهای فعال به API
-- [x] ۷. secure storage، HTTPS release policy، Android package/signing configuration
-- [x] ۸. تست‌های API/امنیت/Flutter، CI و مستندات جاری
-- [x] ۹. demo sandbox، API نسخهٔ `v1`، بستهٔ deployment و مسیر release امضاشده
-- [ ] ۱۰. استقرار آنلاین و تولید APK واقعی — نیازمند حساب میزبانی، application ID و keystore مالک
+- [x] ۶. رابط Flutter واکنش‌گرا و phone-first و اتصال همهٔ مسیرهای فعال به API
+- [x] ۷. secure storage، HTTPS release policy و تنظیم signing اندروید
+- [x] ۸. تست‌های API/امنیت/Flutter، CI و مستندات
+- [x] ۹. demo sandbox ایزوله، API نسخهٔ `v1`، بستهٔ deployment و مسیر release امضاشده
+- [x] ۱۰. تغییر کامل و دائمی هویت پروژه به **LMS**، namespace اندروید، آیکون، README حرفه‌ای، نمودار معماری و اسکرین‌شات‌های واقعی رابط
+- [ ] ۱۱. تأیید CI شاخهٔ نهایی، ادغام در `main` و عمومی‌کردن repository
+- [ ] ۱۲. استقرار آنلاین و تولید APK امضاشدهٔ واقعی — نیازمند حساب میزبانی و keystore مالک
 
-## نتیجه‌های تأییدشده
+## نتیجه‌های تأییدشده در 2026-10-09
 
 - تمام فایل‌های PHP با PHP 8.4 lint شده‌اند.
-- schema تازه روی MariaDB 11.8 import شده و ۲۶ جدول ساخته است.
-- migration نگهدارنده روی یک کپی از schema و دادهٔ baseline اجرا شده، شمارش
-  کاربران/کلاس‌ها/آزمون‌ها را حفظ کرده و version خود را ثبت کرده است.
-- `tools/demo_seed.sql` روی schema تازه import و fixtureهای کاربر/کلاس/آزمون/
-  نسخهٔ تکلیف بررسی شده‌اند.
-- مجموعهٔ lifecycle با **۴۸ تست از ۴۸ تست موفق** روی مسیر نسخهٔ `api/v1` اجرا شد.
+- `shellcheck` و parse تمام اسکریپت‌های shell بدون خطا یا هشدار است.
+- schema تازه روی MariaDB 11.8 import شده و **۲۶ جدول** ساخته است.
+- migration نگه‌دارنده روی schema قدیمی اجرا و marker نسخهٔ خود را ثبت کرده است.
+- seed محلی روی schema تازه import شده و fixtureهای آن بررسی شده‌اند.
+- مجموعهٔ lifecycle با **۴۸ تست از ۴۸ تست موفق** روی `api/v1` اجرا شد.
 - مجموعهٔ امنیتی با **۲۲ تست از ۲۲ تست موفق** اجرا شد.
-- `flutter analyze` بدون issue و هر **۲۴ تست Flutter** موفق بوده‌اند.
-- Web debug با Playwright در viewport گوشی بدون خطای runtime/asset smoke-test شد.
-- **Web release در GitHub Actions با موفقیت ساخته شد**؛ محدودیت local sandbox
-  دیگر مانع تأیید release Web نیست.
-- اولین Android CI به‌دلیل DSL منسوخ AGP 9 fail شد و پس از اصلاح تا مرحلهٔ
-  manifest پیش رفت. اجرای دوم نیاز واقعی Jitsi به minSdk 26 و تعارض label را
-  آشکار کرد؛ هر دو اصلاح شده‌اند و rerun بعدی لازم است. هنوز APK تأیید نشده است.
-- به‌دلیل پر بودن ظرفیت روزانهٔ HelioHost، مالک Serv00 را به‌عنوان مقصد رایگان
-  انتخاب کرد؛ بسته و راهنمای Serv00 با PHP 8.3، MySQL 8، SSL و SSH آماده شده است.
+- `flutter analyze` بدون issue و **۲۵ تست از ۲۵ تست Flutter** موفق بوده‌اند.
+- Flutter Web release با Flutter 3.47.6 به‌صورت محلی ساخته شد.
+- Playwright بوت نسخهٔ Web را در viewport گوشی بدون خطای runtime/asset تأیید کرد.
+- build نسخهٔ showcase در حالت release موفق شد و چهار تصویر login، داشبورد معلم، داشبورد دانش‌آموز و فضای کلاس از خود Flutter تولید شدند.
+- یک ایراد واقعی Material در sidebar دسکتاپ هنگام تولید تصاویر کشف، اصلاح و با widget test جدید پوشش داده شد.
+- باقی‌ماندهٔ هویت قدیمی در درخت پروژه صفر است؛ مسیر نهایی Flutter برابر `lms_flutter/` است.
+- application ID نهایی اندروید: `io.github.seyedmohammadsinahosseini.lms`
 
 ## خروجی‌های آماده
 
+- `README.md`: معرفی انگلیسی portfolio، قابلیت‌ها، امنیت، معماری، evidence و راه‌اندازی
+- `docs/images/`: لوگو، نمودار معماری و چهار screenshot واقعی رابط
 - `.github/workflows/ci.yml`: PHP/schema/migration/API/security، Flutter، Web و Android
+- `.github/workflows/screenshots.yml`: بازتولید deterministic تصاویر portfolio
 - `.github/workflows/release-android.yml`: ساخت و verify کردن APK امضاشده و GitHub Release
-- `tools/package_serv00.sh`: بستهٔ هم‌دامنهٔ مخصوص Serv00 با `public_html` و private storage
-- `tools/package_heliohost.sh`: fallback آماده برای HelioHost/Plesk
-- `tools/build_signed_apk.sh`: APK universal با SHA-256 و بدون debug-sign fallback
-- `docs/استقرار-رایگان.md`: راهنمای سادهٔ استقرار دمو روی Serv00
+- `tools/package_deployment.sh`: بستهٔ هم‌دامنه و مستقل از شرکت میزبان
+- `tools/package_serv00.sh`: adapter آماده برای Serv00 با `public_html` و private storage
+- `tools/build_signed_apk.sh`: APK universal با SHA-256 و بدون fallback به debug signing
+- `docs/استقرار-رایگان.md`: راهنمای سادهٔ استقرار دمو
 - `docs/انتشار-اندروید.md`: راهنمای keystore، secretها و release
 
 ## موارد بیرونی باقیمانده
 
-1. تأیید درخواست حساب رایگان Serv00 و دریافت Login/Server/Domain، سپس ساخت MySQL و HTTPS
-2. انتخاب application ID نهایی
-3. ساخت و backup کردن keystore و افزودن GitHub Secrets
-4. در صورت نیاز به Live تولیدی، دریافت credentialهای JaaS
-5. اجرای runtime روی گوشی واقعی و انتشار artifact توسط مالک
+1. اجرای CI روی commit نهایی و ادغام حرفه‌ای در `main`
+2. عمومی‌کردن `seyedmohammadsinahosseini/lms` و تنظیم description/topics
+3. ساخت و backup کردن keystore مالک و افزودن GitHub Secrets
+4. استقرار روی Foojan در صورت سازگاری کامل؛ Serv00 به‌عنوان fallback
+5. برای Live تولیدی، دریافت credentialهای JaaS
+6. اجرای نهایی روی گوشی واقعی و انتشار artifact امضاشده

@@ -1,0 +1,19 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+
+  - package-ecosystem: npm
+    directory: /tools
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+
+  - package-ecosystem: pub
+    directory: /lms_flutter
+    schedule:
+      interval: monthly
+    labels: [dependencies]

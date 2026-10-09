@@ -1,8 +1,8 @@
 -- Login throttling: records failed sign-in attempts so login.php can slow down
 -- password guessing. Run once against an existing database:
 --
---   mysql -u root otms < backend/migrations/2026-09-15_login_attempts.sql
---   (or: sudo mariadb otms < backend/migrations/2026-09-15_login_attempts.sql)
+--   mysql -u root lms < backend/migrations/2026-09-15_login_attempts.sql
+--   (or: sudo mariadb lms < backend/migrations/2026-09-15_login_attempts.sql)
 --
 -- Fresh installs get this table from schema.sql and do not need this file.
 

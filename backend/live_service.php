@@ -7,9 +7,9 @@ function base64url_encode(string $value): string {
 }
 
 function jaas_token(string $room, array $user, bool $moderator): string {
-    $appId = otms_env('OTMS_JAAS_APP_ID');
-    $keyId = otms_env('OTMS_JAAS_KEY_ID');
-    $keyFile = otms_env('OTMS_JAAS_PRIVATE_KEY_FILE');
+    $appId = lms_env('LMS_JAAS_APP_ID');
+    $keyId = lms_env('LMS_JAAS_KEY_ID');
+    $keyFile = lms_env('LMS_JAAS_PRIVATE_KEY_FILE');
     if ($appId === '' || $keyId === '' || $keyFile === '' || !is_readable($keyFile)) {
         throw new RuntimeException('JaaS credentials are incomplete.');
     }
@@ -36,7 +36,7 @@ function jaas_token(string $room, array $user, bool $moderator): string {
 function live_join_details(array $session, array $user, bool $moderator): array {
     $provider = $session['provider'];
     if ($provider === 'jaas') {
-        $appId = otms_env('OTMS_JAAS_APP_ID');
+        $appId = lms_env('LMS_JAAS_APP_ID');
         $token = jaas_token($session['provider_room_id'], $user, $moderator);
         return [
             'provider' => 'jaas',
@@ -48,7 +48,7 @@ function live_join_details(array $session, array $user, bool $moderator): array 
     }
     return [
         'provider' => 'jitsi', 'room' => $session['provider_room_id'],
-        'join_url' => rtrim(otms_env('OTMS_JITSI_BASE_URL', 'https://meet.jit.si'), '/')
+        'join_url' => rtrim(lms_env('LMS_JITSI_BASE_URL', 'https://meet.jit.si'), '/')
             . '/' . rawurlencode($session['provider_room_id']),
         'token' => null,
     ];

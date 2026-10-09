@@ -32,48 +32,49 @@ jobs:
       - name: Install PHP extensions and clients
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y php-cli php-mysql php-mbstring mariadb-client jq curl
-      - name: PHP and shell syntax
+          sudo apt-get install -y php-cli php-mysql php-mbstring mariadb-client jq curl shellcheck
+      - name: PHP and shell quality
         run: |
-          find backend -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          find backend tools -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           bash -n tools/*.sh
+          shellcheck tools/*.sh
       - name: Import fresh schema and security schema
         env:
           MYSQL_PWD: root
         run: |
-          mariadb -h127.0.0.1 -uroot -e "CREATE DATABASE otms_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE otms_security CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER 'otms_ci'@'%' IDENTIFIED BY 'otms_ci'; GRANT ALL ON otms_test.* TO 'otms_ci'@'%'; GRANT ALL ON otms_security.* TO 'otms_ci'@'%'; FLUSH PRIVILEGES;"
-          mariadb -h127.0.0.1 -uroot otms_test < backend/schema.sql
-          mariadb -h127.0.0.1 -uroot otms_security < backend/schema.sql
+          mariadb -h127.0.0.1 -uroot -e "CREATE DATABASE lms_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE lms_security CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE USER 'lms_ci'@'%' IDENTIFIED BY 'lms_ci'; GRANT ALL ON lms_test.* TO 'lms_ci'@'%'; GRANT ALL ON lms_security.* TO 'lms_ci'@'%'; FLUSH PRIVILEGES;"
+          mariadb -h127.0.0.1 -uroot lms_test < backend/schema.sql
+          mariadb -h127.0.0.1 -uroot lms_security < backend/schema.sql
       - name: API lifecycle tests
         env:
-          OTMS_DB_HOST: 127.0.0.1
-          OTMS_DB_NAME: otms_test
-          OTMS_DB_USER: otms_ci
-          OTMS_DB_PASS: otms_ci
+          LMS_DB_HOST: 127.0.0.1
+          LMS_DB_NAME: lms_test
+          LMS_DB_USER: lms_ci
+          LMS_DB_PASS: lms_ci
         run: bash tools/api_test.sh
       - name: API security tests
         env:
-          OTMS_DB_HOST: 127.0.0.1
-          OTMS_DB_NAME: otms_security
-          OTMS_DB_USER: otms_ci
-          OTMS_DB_PASS: otms_ci
+          LMS_DB_HOST: 127.0.0.1
+          LMS_DB_NAME: lms_security
+          LMS_DB_USER: lms_ci
+          LMS_DB_PASS: lms_ci
         run: bash tools/api_security_test.sh
       - name: Upgrade migration from baseline schema
         env:
           MYSQL_PWD: root
         run: |
-          mariadb -h127.0.0.1 -uroot -e 'DROP DATABASE IF EXISTS otms;'
-          git show c89f74a:backend/schema.sql | mariadb -h127.0.0.1 -uroot
-          mariadb -h127.0.0.1 -uroot otms < backend/migrations/2026-10-02_full_remediation.sql
-          test "$(mariadb -N -h127.0.0.1 -uroot -e "SELECT COUNT(*) FROM otms.schema_migrations WHERE version='2026-10-02_full_remediation'")" = 1
+          mariadb -h127.0.0.1 -uroot -e 'DROP DATABASE IF EXISTS lms; CREATE DATABASE lms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+          git show c89f74a:backend/schema.sql | sed -E '/^CREATE DATABASE /d; /^USE /d' | mariadb -h127.0.0.1 -uroot lms
+          mariadb -h127.0.0.1 -uroot lms < backend/migrations/2026-10-02_full_remediation.sql
+          test "$(mariadb -N -h127.0.0.1 -uroot -e "SELECT COUNT(*) FROM lms.schema_migrations WHERE version='2026-10-02_full_remediation'")" = 1
       - name: Validate local seed against fresh schema
         env:
           MYSQL_PWD: root
         run: |
-          mariadb -h127.0.0.1 -uroot -e 'CREATE DATABASE otms_seed CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
-          mariadb -h127.0.0.1 -uroot otms_seed < backend/schema.sql
-          mariadb -h127.0.0.1 -uroot otms_seed < tools/demo_seed.sql
-          test "$(mariadb -N -h127.0.0.1 -uroot -e 'SELECT COUNT(*) FROM otms_seed.users')" = 2
+          mariadb -h127.0.0.1 -uroot -e 'CREATE DATABASE lms_seed CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+          mariadb -h127.0.0.1 -uroot lms_seed < backend/schema.sql
+          mariadb -h127.0.0.1 -uroot lms_seed < tools/demo_seed.sql
+          test "$(mariadb -N -h127.0.0.1 -uroot -e 'SELECT COUNT(*) FROM lms_seed.users')" = 2
 
   flutter:
     name: Flutter analysis, tests and builds
@@ -87,34 +88,34 @@ jobs:
           flutter-version: 3.47.6
           cache: true
       - name: Dependencies
-        working-directory: otms_flutter
+        working-directory: lms_flutter
         run: flutter pub get
       - name: Static analysis
-        working-directory: otms_flutter
+        working-directory: lms_flutter
         run: flutter analyze
       - name: Unit and widget tests
-        working-directory: otms_flutter
+        working-directory: lms_flutter
         run: flutter test
       - name: Release web build
-        working-directory: otms_flutter
+        working-directory: lms_flutter
         run: >-
           flutter build web --release --no-wasm-dry-run
-          --dart-define=OTMS_API_BASE=https://portfolio.example.test/api/v1
-          --dart-define=OTMS_APP_MODE=portfolio_demo
+          --dart-define=LMS_API_BASE=https://portfolio.example.test/api/v1
+          --dart-define=LMS_APP_MODE=portfolio_demo
       - name: Debug Android build
-        working-directory: otms_flutter
+        working-directory: lms_flutter
         env:
           GRADLE_OPTS: -Dorg.gradle.daemon=false
         run: >-
           flutter build apk --debug
-          --dart-define=OTMS_API_BASE=https://portfolio.example.test/api/v1
-          --dart-define=OTMS_APP_MODE=development
+          --dart-define=LMS_API_BASE=https://portfolio.example.test/api/v1
+          --dart-define=LMS_APP_MODE=development
       - uses: actions/upload-artifact@v4
         with:
-          name: otms-builds
+          name: lms-builds
           path: |
-            otms_flutter/build/web
-            otms_flutter/build/app/outputs/flutter-apk/app-debug.apk
+            lms_flutter/build/web
+            lms_flutter/build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
 
   browser-smoke:
@@ -126,7 +127,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
         with:
-          name: otms-builds
+          name: lms-builds
           path: artifacts
       - uses: actions/setup-node@v4
         with:
@@ -140,8 +141,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Serve web build
         run: |
-          python3 -m http.server 8080 --directory artifacts/web > /tmp/otms-web.log 2>&1 &
-          echo $! > /tmp/otms-web.pid
+          python3 -m http.server 8080 --directory artifacts/web > /tmp/lms-web.log 2>&1 &
+          echo $! > /tmp/lms-web.pid
       - name: Runtime smoke test
         env:
           APP_URL: http://127.0.0.1:8080/

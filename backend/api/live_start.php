@@ -8,9 +8,9 @@ $b = body();
 $classId = (int)input_int($b, 'class_id', 1);
 owned_class_or_fail($classId, (int)$user['id']);
 enforce_rate_limit('live_start', (string)$user['id'], 10, 3600, 3600);
-$provider = otms_env('OTMS_LIVE_PROVIDER', 'jitsi');
+$provider = lms_env('LMS_LIVE_PROVIDER', 'jitsi');
 if (!in_array($provider, ['jitsi', 'jaas'], true)) $provider = 'jitsi';
-if ($provider === 'jitsi' && otms_is_production()) {
+if ($provider === 'jitsi' && lms_is_production()) {
     fail('A managed or self-hosted authenticated Live provider is required in production.', 503, 'LIVE_PROVIDER_NOT_CONFIGURED');
 }
 
@@ -24,8 +24,8 @@ try {
     $stmt->execute([$classId]);
     $session = $stmt->fetch();
     if (!$session) {
-        $room = 'otms-' . $classId . '-' . bin2hex(random_bytes(12));
-        $baseUrl = $provider === 'jaas' ? 'https://8x8.vc' : rtrim(otms_env('OTMS_JITSI_BASE_URL', 'https://meet.jit.si'), '/');
+        $room = 'lms-' . $classId . '-' . bin2hex(random_bytes(12));
+        $baseUrl = $provider === 'jaas' ? 'https://8x8.vc' : rtrim(lms_env('LMS_JITSI_BASE_URL', 'https://meet.jit.si'), '/');
         $pdo->prepare(
             "INSERT INTO live_sessions
              (class_id, created_by, provider, provider_room_id, join_url, status, starts_at)

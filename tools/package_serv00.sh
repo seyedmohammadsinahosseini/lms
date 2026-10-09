@@ -3,38 +3,38 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-$ROOT/deploy-serv00}"
-: "${OTMS_API_BASE:?Set OTMS_API_BASE to https://LOGIN.serv00.net/api/v1}"
-: "${OTMS_SERV00_LOGIN:?Set OTMS_SERV00_LOGIN to the login from the activation email}"
-: "${OTMS_SERV00_SERVER:?Set OTMS_SERV00_SERVER to the assigned host, e.g. s12.serv00.com}"
-: "${OTMS_SERV00_DOMAIN:?Set OTMS_SERV00_DOMAIN to the final hostname, e.g. LOGIN.serv00.net}"
+: "${LMS_API_BASE:?Set LMS_API_BASE to https://LOGIN.serv00.net/api/v1}"
+: "${LMS_SERV00_LOGIN:?Set LMS_SERV00_LOGIN to the login from the activation email}"
+: "${LMS_SERV00_SERVER:?Set LMS_SERV00_SERVER to the assigned host, e.g. s12.serv00.com}"
+: "${LMS_SERV00_DOMAIN:?Set LMS_SERV00_DOMAIN to the final hostname, e.g. LOGIN.serv00.net}"
 
-LOGIN="${OTMS_SERV00_LOGIN,,}"
-SERVER="${OTMS_SERV00_SERVER,,}"
-DOMAIN="${OTMS_SERV00_DOMAIN,,}"
+LOGIN="${LMS_SERV00_LOGIN,,}"
+SERVER="${LMS_SERV00_SERVER,,}"
+DOMAIN="${LMS_SERV00_DOMAIN,,}"
 
 [[ "$LOGIN" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || {
-  echo 'OTMS_SERV00_LOGIN contains unsupported characters.' >&2; exit 2;
+  echo 'LMS_SERV00_LOGIN contains unsupported characters.' >&2; exit 2;
 }
 [[ "$SERVER" =~ ^s([0-9]+)\.serv00\.com$ ]] || {
-  echo 'OTMS_SERV00_SERVER must look like s12.serv00.com.' >&2; exit 2;
+  echo 'LMS_SERV00_SERVER must look like s12.serv00.com.' >&2; exit 2;
 }
 SERVER_NUMBER="${BASH_REMATCH[1]}"
 [[ "$DOMAIN" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]] || {
-  echo 'OTMS_SERV00_DOMAIN must be a hostname without scheme or path.' >&2; exit 2;
+  echo 'LMS_SERV00_DOMAIN must be a hostname without scheme or path.' >&2; exit 2;
 }
 EXPECTED_API_BASE="https://$DOMAIN/api/v1"
-[[ "$OTMS_API_BASE" == "$EXPECTED_API_BASE" ]] || {
-  echo "OTMS_API_BASE must exactly equal $EXPECTED_API_BASE." >&2; exit 2;
+[[ "$LMS_API_BASE" == "$EXPECTED_API_BASE" ]] || {
+  echo "LMS_API_BASE must exactly equal $EXPECTED_API_BASE." >&2; exit 2;
 }
 
-OTMS_WEBROOT_NAME=public_html \
+LMS_WEBROOT_NAME=public_html \
   bash "$ROOT/tools/package_deployment.sh" "$OUT"
 
 DOMAIN_ROOT="/usr/home/$LOGIN/domains/$DOMAIN"
 DB_HOST="mysql$SERVER_NUMBER.serv00.com"
 mkdir -p "$OUT/storage/tmp"
 
-python3 - "$OUT/config/otms.env.example" "$DOMAIN_ROOT" "$DB_HOST" "$DOMAIN" <<'PY'
+python3 - "$OUT/config/lms.env.example" "$DOMAIN_ROOT" "$DB_HOST" "$DOMAIN" <<'PY'
 from pathlib import Path
 import sys
 
@@ -72,7 +72,7 @@ TMP_HTACCESS="$OUT/public_html/.htaccess.tmp"
 mv "$TMP_HTACCESS" "$OUT/public_html/.htaccess"
 
 cat >"$OUT/SERV00_DEPLOY.txt" <<EOF
-OTMS Serv00 layout
+LMS Serv00 layout
 ==================
 
 Account values used for this package:
@@ -94,7 +94,7 @@ The resulting server layout must contain:
   $DOMAIN_ROOT/schema.sql
 
 Then:
-1. Rename config/otms.env.example to config/otms.env and fill the database
+1. Rename config/lms.env.example to config/lms.env and fill the database
    name, user, password and every remaining placeholder. Never send passwords.
 2. In DevilWEB, create an empty MySQL database/user. The host is $DB_HOST.
 3. Import schema.sql with phpMyAdmin or the mysql client over SSH.
@@ -102,13 +102,13 @@ Then:
    $DOMAIN_ROOT:/tmp if the panel does not already allow the domain root.
 5. Generate a free Let's Encrypt certificate, then enable Force SSL.
 6. Keep Serv00 PoW/browser challenges OFF so native Android can call the API.
-7. Test: $OTMS_API_BASE/health.php
+7. Test: $LMS_API_BASE/health.php
 
 Recommended permissions over SSH:
   chmod 700 '$DOMAIN_ROOT/config' '$DOMAIN_ROOT/storage' '$DOMAIN_ROOT/tools'
-  chmod 600 '$DOMAIN_ROOT/config/otms.env'
+  chmod 600 '$DOMAIN_ROOT/config/lms.env'
 
-The PHP bootstrap automatically reads ../config/otms.env relative to
+The PHP bootstrap automatically reads ../config/lms.env relative to
 public_html. The real env, uploads, logs, schema and CLI tools remain private.
 EOF
 

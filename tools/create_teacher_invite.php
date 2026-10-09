@@ -10,7 +10,7 @@ $helpers = is_file($root . '/backend/helpers.php')
     ? $root . '/backend/helpers.php'
     : $root . '/www/helpers.php';
 if (!is_file($helpers)) {
-    fwrite(STDERR, "Could not locate the OTMS backend bootstrap.\n");
+    fwrite(STDERR, "Could not locate the LMS backend bootstrap.\n");
     exit(1);
 }
 require_once $helpers;

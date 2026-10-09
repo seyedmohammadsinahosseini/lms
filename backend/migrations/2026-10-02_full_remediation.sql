@@ -1,5 +1,5 @@
--- OTMS migration: c89f74a schema -> secure/versioned 2.0 schema
--- Backup first. Run exactly once against the selected OTMS database.
+-- LMS migration: c89f74a schema -> secure/versioned 2.0 schema
+-- Backup first. Run exactly once against the selected LMS database.
 -- Tested target syntax: MariaDB 10.11+ / MySQL 8+.
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
@@ -180,10 +180,10 @@ ALTER TABLE attempts
   ADD COLUMN idempotency_key VARCHAR(80) NULL AFTER status;
 UPDATE attempts at JOIN assessment_versions av ON av.assessment_id = at.assessment_id AND av.version_no = 1
   SET at.assessment_version_id = av.id;
-CREATE TEMPORARY TABLE otms_attempt_numbers AS
+CREATE TEMPORARY TABLE lms_attempt_numbers AS
   SELECT id, ROW_NUMBER() OVER (PARTITION BY assessment_id, student_id ORDER BY id) AS n FROM attempts;
-UPDATE attempts at JOIN otms_attempt_numbers n ON n.id = at.id SET at.attempt_no = n.n;
-DROP TEMPORARY TABLE otms_attempt_numbers;
+UPDATE attempts at JOIN lms_attempt_numbers n ON n.id = at.id SET at.attempt_no = n.n;
+DROP TEMPORARY TABLE lms_attempt_numbers;
 UPDATE attempts SET status = 'pending_grading' WHERE status = 'completed';
 ALTER TABLE attempts
   MODIFY assessment_version_id BIGINT UNSIGNED NOT NULL,

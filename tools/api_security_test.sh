@@ -10,16 +10,19 @@ BODY_FILE="$WORK/body"
 COOKIE_JAR="$WORK/cookies"
 SERVER_LOG="$WORK/server.log"
 PASS=0 FAIL=0 SERVER_PID=""
-cleanup() { [[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null || true; rm -rf "$WORK"; }
+cleanup() {
+  if [[ -n "$SERVER_PID" ]]; then kill "$SERVER_PID" 2>/dev/null || true; fi
+  rm -rf "$WORK"
+}
 trap cleanup EXIT
 
-export OTMS_APP_ENV=local
-export OTMS_ALLOW_TEACHER_REGISTRATION=true
-export OTMS_DEMO_MODE=false
-export OTMS_APP_KEY='security-test-key-that-is-not-used-in-production'
-export OTMS_STORAGE_PATH="$STORAGE"
-export OTMS_ALLOWED_ORIGINS='https://portfolio.example.test'
-export OTMS_PUBLIC_BASE_URL="http://127.0.0.1:${PORT}"
+export LMS_APP_ENV=local
+export LMS_ALLOW_TEACHER_REGISTRATION=true
+export LMS_DEMO_MODE=false
+export LMS_APP_KEY='security-test-key-that-is-not-used-in-production'
+export LMS_STORAGE_PATH="$STORAGE"
+export LMS_ALLOWED_ORIGINS='https://portfolio.example.test'
+export LMS_PUBLIC_BASE_URL="http://127.0.0.1:${PORT}"
 php -d upload_max_filesize=16M -d post_max_size=18M -S "127.0.0.1:${PORT}" -t "$ROOT/backend" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 80); do curl -fsS "$BASE/health.php" >/dev/null 2>&1 && break; sleep .2; done
@@ -43,8 +46,12 @@ upload() { # endpoint token path field=value...
 }
 ok() { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 bad() { FAIL=$((FAIL+1)); printf '  FAIL %s\n       response(%s): %s\n' "$1" "$CODE" "$BODY"; }
-expect_code() { [[ "$CODE" == "$2" ]] && ok "$1" || bad "$1 (expected HTTP $2)"; }
-expect_jq() { jq -e "$2" >/dev/null 2>&1 <<<"$BODY" && ok "$1" || bad "$1 (jq: $2)"; }
+expect_code() {
+  if [[ "$CODE" == "$2" ]]; then ok "$1"; else bad "$1 (expected HTTP $2)"; fi
+}
+expect_jq() {
+  if jq -e "$2" >/dev/null 2>&1 <<<"$BODY"; then ok "$1"; else bad "$1 (jq: $2)"; fi
+}
 section() { printf '\n-- %s --\n' "$1"; }
 
 STAMP="$(date +%s)-$$"; PASSWORD='correct horse battery staple'
@@ -80,9 +87,17 @@ upload submission_submit.php "$ST" "$WORK/huge.pdf" "homework_id=$HW_ID"
 expect_code 'file over 8 MB rejected' 413
 upload submission_submit.php "$ST" "$WORK/valid.pdf" "homework_id=$HW_ID" 'text=private answer'
 expect_code 'legitimate PDF accepted' 201
-[[ "$(find "$STORAGE" -type f | wc -l)" == 1 ]] && ok 'upload stored outside document root' || bad 'upload stored outside document root'
+if [[ "$(find "$STORAGE" -type f | wc -l)" == 1 ]]; then
+  ok 'upload stored outside document root'
+else
+  bad 'upload stored outside document root'
+fi
 PUBLIC_UPLOAD_COUNT="$(find "$ROOT/backend/uploads" -type f ! -name '.gitignore' ! -name '.htaccess' 2>/dev/null | wc -l)"
-[[ "$PUBLIC_UPLOAD_COUNT" == 0 ]] && ok 'no files are written to the legacy public upload directory' || bad 'no files are written to the legacy public upload directory'
+if [[ "$PUBLIC_UPLOAD_COUNT" == 0 ]]; then
+  ok 'no files are written to the legacy public upload directory'
+else
+  bad 'no files are written to the legacy public upload directory'
+fi
 
 section authorized-downloads
 get "submissions_list.php?homework_id=$HW_ID" "$TT"
@@ -90,13 +105,19 @@ DOWNLOAD_PATH="$(jq -r '.submissions[0].file_path' <<<"$BODY")"
 FILE_ID="$(sed -n 's/.*[?&]id=\([0-9]*\).*/\1/p' <<<"$DOWNLOAD_PATH")"
 CODE="$(curl -sS -o "$WORK/downloaded.pdf" -w '%{http_code}' "$BASE/$DOWNLOAD_PATH")"
 expect_code 'short-lived signed URL downloads without exposing storage path' 200
-cmp -s "$WORK/valid.pdf" "$WORK/downloaded.pdf" && ok 'download bytes match original' || bad 'download bytes match original'
+if cmp -s "$WORK/valid.pdf" "$WORK/downloaded.pdf"; then
+  ok 'download bytes match original'
+else
+  bad 'download bytes match original'
+fi
 CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' "$BASE/file_download.php?id=$FILE_ID")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'bare file id requires authentication' 401
 CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -H "Authorization: Bearer $OT" "$BASE/file_download.php?id=$FILE_ID")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'unenrolled student cannot download another submission' 403
 CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -H "Authorization: Bearer $TT" "$BASE/file_download.php?id=$FILE_ID")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'owning teacher can download student submission' 200
+# A regular expression is clearer than nested shell substitutions here.
+# shellcheck disable=SC2001
 TAMPERED="$(sed 's/sig=[a-f0-9]*/sig=deadbeef/' <<<"$DOWNLOAD_PATH")"
 CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' "$BASE/$TAMPERED")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'tampered signed URL is rejected' 401
@@ -114,17 +135,25 @@ expect_code 'unenrolled student cannot fetch class material by id' 403
 section csrf-and-cors
 WEB_EMAIL="security-teacher-$STAMP@example.test"
 LOGIN_JSON="$(jq -nc --arg e "$WEB_EMAIL" --arg p "$PASSWORD" '{email:$e,password:$p}')"
-CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -c "$COOKIE_JAR" -H 'X-OTMS-Client: web' -H 'Content-Type: application/json' --data "$LOGIN_JSON" "$BASE/login.php")"; BODY="$(cat "$BODY_FILE")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -c "$COOKIE_JAR" -H 'X-LMS-Client: web' -H 'Content-Type: application/json' --data "$LOGIN_JSON" "$BASE/login.php")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'web login receives cookie session' 200
 CSRF="$(jq -r '.csrf_token' <<<"$BODY")"
-CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -b "$COOKIE_JAR" -H 'X-OTMS-Client: web' -H 'Content-Type: application/json' --data '{"full_name":"Blocked CSRF"}' "$BASE/profile_update.php")"; BODY="$(cat "$BODY_FILE")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -b "$COOKIE_JAR" -H 'X-LMS-Client: web' -H 'Content-Type: application/json' --data '{"full_name":"Blocked CSRF"}' "$BASE/profile_update.php")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'cookie mutation without CSRF token is rejected' 403
 expect_jq 'CSRF error has fixed code' '.error.code == "CSRF_FAILED"'
-CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -b "$COOKIE_JAR" -H 'X-OTMS-Client: web' -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' --data '{"full_name":"CSRF Protected"}' "$BASE/profile_update.php")"; BODY="$(cat "$BODY_FILE")"
+CODE="$(curl -sS -o "$BODY_FILE" -w '%{http_code}' -b "$COOKIE_JAR" -H 'X-LMS-Client: web' -H "X-CSRF-Token: $CSRF" -H 'Content-Type: application/json' --data '{"full_name":"CSRF Protected"}' "$BASE/profile_update.php")"; BODY="$(cat "$BODY_FILE")"
 expect_code 'valid CSRF token permits cookie mutation' 200
 acao() { curl -sS -o /dev/null -D - -H "Origin: $1" "$BASE/health.php" | tr -d '\r' | awk 'tolower($1)=="access-control-allow-origin:"{print $2}'; }
-[[ "$(acao https://portfolio.example.test)" == 'https://portfolio.example.test' ]] && ok 'configured CORS origin allowed' || bad 'configured CORS origin allowed'
-[[ -z "$(acao https://evil.example.test)" ]] && ok 'unconfigured CORS origin blocked' || bad 'unconfigured CORS origin blocked'
+if [[ "$(acao https://portfolio.example.test)" == 'https://portfolio.example.test' ]]; then
+  ok 'configured CORS origin allowed'
+else
+  bad 'configured CORS origin allowed'
+fi
+if [[ -z "$(acao https://evil.example.test)" ]]; then
+  ok 'unconfigured CORS origin blocked'
+else
+  bad 'unconfigured CORS origin blocked'
+fi
 
 printf '\n== %d passed, %d failed ==\n' "$PASS" "$FAIL"
 if (( FAIL > 0 )); then tail -n 100 "$SERVER_LOG" >&2; exit 1; fi

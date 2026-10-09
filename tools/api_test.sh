@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# OTMS 2.0 end-to-end API regression suite.
-# Requires a fresh/imported schema and OTMS_DB_* credentials in the environment.
+# LMS 2.0 end-to-end API regression suite.
+# Requires a fresh/imported schema and LMS_DB_* credentials in the environment.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,15 +13,15 @@ FAIL=0
 SERVER_PID=""
 
 cleanup() {
-  [[ -n "$SERVER_PID" ]] && kill "$SERVER_PID" 2>/dev/null || true
+  if [[ -n "$SERVER_PID" ]]; then kill "$SERVER_PID" 2>/dev/null || true; fi
   rm -f "$BODY_FILE" "$SERVER_LOG"
 }
 trap cleanup EXIT
 
-export OTMS_APP_ENV="${OTMS_APP_ENV:-local}"
-export OTMS_ALLOW_TEACHER_REGISTRATION=true
-export OTMS_DEMO_MODE=true
-export OTMS_PUBLIC_BASE_URL="http://127.0.0.1:${PORT}"
+export LMS_APP_ENV="${LMS_APP_ENV:-local}"
+export LMS_ALLOW_TEACHER_REGISTRATION=true
+export LMS_DEMO_MODE=true
+export LMS_PUBLIC_BASE_URL="http://127.0.0.1:${PORT}"
 php -S "127.0.0.1:${PORT}" -t "$ROOT/backend" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 for _ in $(seq 1 80); do
@@ -57,11 +57,19 @@ fail_check() {
 }
 expect_code() {
   local name="$1" expected="$2"
-  [[ "$CODE" == "$expected" ]] && ok "$name" || fail_check "$name (expected HTTP $expected)"
+  if [[ "$CODE" == "$expected" ]]; then
+    ok "$name"
+  else
+    fail_check "$name (expected HTTP $expected)"
+  fi
 }
 expect_jq() {
   local name="$1" expr="$2"
-  jq -e "$expr" >/dev/null 2>&1 <<<"$BODY" && ok "$name" || fail_check "$name (jq: $expr)"
+  if jq -e "$expr" >/dev/null 2>&1 <<<"$BODY"; then
+    ok "$name"
+  else
+    fail_check "$name (jq: $expr)"
+  fi
 }
 section() { printf '\n-- %s --\n' "$1"; }
 

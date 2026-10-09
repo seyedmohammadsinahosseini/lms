@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 require_method('POST');
-if (!otms_demo_mode()) fail('Demo mode is disabled.', 404, 'NOT_FOUND');
+if (!lms_demo_mode()) fail('Demo mode is disabled.', 404, 'NOT_FOUND');
 enforce_rate_limit('demo_login', client_ip(), 20, 3600, 3600);
 $b = body();
 $demoPublicId = input_string($b, 'demo_id', 32, true, 32);
@@ -16,6 +16,6 @@ $stmt = db()->prepare(
 $stmt->execute([$demoPublicId, token_hash((string)$accessKey), $role]);
 $user = $stmt->fetch();
 if (!$user) fail('Demo session is invalid or expired.', 401, 'DEMO_EXPIRED');
-$session = issue_session((int)$user['id'], 'OTMS portfolio demo');
+$session = issue_session((int)$user['id'], 'LMS portfolio demo');
 audit_event((int)$user['id'], 'demo.login', 'user', (int)$user['id'], ['role' => $role]);
 send([...$session, 'user' => public_user($user)]);
