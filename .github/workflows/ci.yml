@@ -110,7 +110,7 @@ jobs:
           flutter build apk --debug
           --dart-define=LMS_API_BASE=https://portfolio.example.test/api/v1
           --dart-define=LMS_APP_MODE=development
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: lms-builds
           path: |
@@ -147,7 +147,7 @@ jobs:
         env:
           APP_URL: http://127.0.0.1:8080/
         run: node tools/web_smoke_test.js artifacts/web-smoke.png
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: browser-smoke
