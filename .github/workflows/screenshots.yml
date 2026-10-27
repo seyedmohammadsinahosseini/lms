@@ -57,7 +57,7 @@ jobs:
           LMS_SHOWCASE_PREVIEW: http://127.0.0.1:8081/
         run: node tools/capture_portfolio_screenshots.js
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: lms-portfolio-screenshots
           path: |
