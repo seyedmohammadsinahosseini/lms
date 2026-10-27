@@ -1,9 +1,0 @@
-<!-- Runs the app on an Android emulator, where 10.0.2.2 is the emulator's alias
-     for this computer's localhost. No configuration needed, kept for clarity. -->
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="OTMS - Android emulator" type="FlutterRunConfigurationType" factoryName="Flutter">
-    <option name="filePath" value="$PROJECT_DIR$/lib/main.dart" />
-    <option name="additionalArgs" value="--dart-define=OTMS_API_BASE=http://10.0.2.2/OTMS1/backend" />
-    <method v="2" />
-  </configuration>
-</component>

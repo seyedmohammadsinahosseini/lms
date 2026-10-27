@@ -4,12 +4,8 @@ Thumbs.db
 *.swp
 *~
 
-# IDE settings are per-developer, so ignore the contents -- but a directory
-# cannot be un-ignored from inside, so the note below re-includes the Flutter run
-# configurations, which carry the --dart-define for the API base URL and are
-# meant to be shared.
-**/.idea/*
-!**/.idea/runConfigurations/
+# IDE settings are per-developer. Shared launch settings live in .vscode/.
+**/.idea/
 *.iml
 
 # VS Code: ignore local state but keep the shared run configurations
@@ -29,12 +25,14 @@ node_modules/
 *.log
 
 # Runtime secrets, signing identities and generated release bundles
-/config/otms.env
+/config/lms.env
 *.jks
 *.keystore
 *.p12
 .signing/
 /deploy-package/
+/deploy-heliohost/
+/deploy-serv00/
 /releases/
 /storage/uploads/*
 !/storage/uploads/.gitignore

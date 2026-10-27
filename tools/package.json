@@ -1,8 +1,8 @@
 {
-  "name": "otms-tools",
+  "name": "lms-tools",
   "private": true,
   "version": "1.0.0",
-  "description": "Browser smoke-test dependencies for OTMS CI",
+  "description": "Browser smoke-test dependencies for LMS CI",
   "license": "UNLICENSED",
   "devDependencies": {
     "playwright": "1.63.0"

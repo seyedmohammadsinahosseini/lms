@@ -39,7 +39,7 @@ if (!$allowed && $user['role'] === 'teacher') {
 }
 if (!$allowed) fail('Forbidden.', 403, 'FORBIDDEN');
 
-$path = otms_storage_path() . DIRECTORY_SEPARATOR . $file['storage_name'];
+$path = lms_storage_path() . DIRECTORY_SEPARATOR . $file['storage_name'];
 if (!is_file($path) || !is_readable($path)) fail('File is unavailable.', 404, 'FILE_MISSING');
 
 header_remove('Content-Type');

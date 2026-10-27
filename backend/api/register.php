@@ -26,7 +26,7 @@ $pdo = db();
 $pdo->beginTransaction();
 try {
     $invite = null;
-    if ($role === 'teacher' && !otms_teacher_registration_enabled()) {
+    if ($role === 'teacher' && !lms_teacher_registration_enabled()) {
         if ($inviteCode === null || $inviteCode === '') {
             fail('A valid teacher invitation is required.', 403, 'TEACHER_INVITE_REQUIRED');
         }

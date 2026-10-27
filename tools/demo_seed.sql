@@ -1,4 +1,4 @@
--- OTMS 2.0 local-development seed.
+-- LMS 2.0 local-development seed.
 -- Import ONLY into a fresh non-production database after backend/schema.sql.
 -- Both accounts use password: password
 SET NAMES utf8mb4;
@@ -6,10 +6,10 @@ SET time_zone = '+00:00';
 START TRANSACTION;
 
 INSERT INTO users (full_name, email, password_hash, role) VALUES
-  ('Portfolio Teacher', 'teacher@otms.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'teacher');
+  ('Portfolio Teacher', 'teacher@lms.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'teacher');
 SET @teacher_id = LAST_INSERT_ID();
 INSERT INTO users (full_name, email, password_hash, role) VALUES
-  ('Portfolio Student', 'student@otms.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'student');
+  ('Portfolio Student', 'student@lms.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'student');
 SET @student_id = LAST_INSERT_ID();
 INSERT INTO teacher_codes (teacher_id, code, active) VALUES (@teacher_id, 'DEMO24', 1);
 

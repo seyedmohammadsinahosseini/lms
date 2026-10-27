@@ -1,4 +1,4 @@
--- OTMS fresh-install schema (MariaDB 10.11+ / MySQL 8+)
+-- LMS fresh-install schema (MariaDB 10.11+ / MySQL 8+)
 -- Production-safe: this file creates tables only. It does not create/drop a
 -- database and it never inserts demo credentials. Select an empty database
 -- before importing it. Existing installations must use migrations/.

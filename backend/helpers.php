@@ -11,7 +11,7 @@ header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 
 set_exception_handler(static function (Throwable $e): void {
     error_log(sprintf(
-        'OTMS unhandled %s: %s in %s:%d',
+        'LMS unhandled %s: %s in %s:%d',
         get_class($e),
         $e->getMessage(),
         $e->getFile(),
@@ -29,7 +29,7 @@ function send_json(mixed $data, int $code = 200): never {
         JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
     );
     if ($json === false) {
-        error_log('OTMS json_encode failed: ' . json_last_error_msg());
+        error_log('LMS json_encode failed: ' . json_last_error_msg());
         http_response_code(500);
         echo '{"ok":false,"error":{"code":"ENCODING_ERROR","message":"Response encoding failed."}}';
         exit;
@@ -191,7 +191,7 @@ function valid_https_url(?string $url, bool $allowLocalHttp = false): ?string {
         fail('The URL is invalid.', 422, 'VALIDATION_ERROR', ['url' => 'Invalid URL']);
     }
     $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
-    $httpAllowed = $allowLocalHttp && !otms_is_production() && $scheme === 'http';
+    $httpAllowed = $allowLocalHttp && !lms_is_production() && $scheme === 'http';
     if ($scheme !== 'https' && !$httpAllowed) {
         fail('Only HTTPS URLs are allowed.', 422, 'VALIDATION_ERROR', ['url' => 'HTTPS required']);
     }
@@ -222,7 +222,7 @@ function bearer_token(): ?string {
 function request_session_token(): array {
     $bearer = bearer_token();
     if ($bearer !== null) return [$bearer, 'bearer'];
-    $cookie = $_COOKIE['otms_session'] ?? null;
+    $cookie = $_COOKIE['lms_session'] ?? null;
     if (is_string($cookie) && preg_match('/^[A-Fa-f0-9]{64}$/', $cookie)) {
         return [$cookie, 'cookie'];
     }
@@ -230,16 +230,16 @@ function request_session_token(): array {
 }
 
 function request_wants_cookie_session(): bool {
-    return strtolower((string)($_SERVER['HTTP_X_OTMS_CLIENT'] ?? '')) === 'web';
+    return strtolower((string)($_SERVER['HTTP_X_LMS_CLIENT'] ?? '')) === 'web';
 }
 
 function cookie_is_secure(): bool {
     if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') return true;
-    return otms_is_production();
+    return lms_is_production();
 }
 
 function set_session_cookie(string $token, int $expiresAt): void {
-    setcookie('otms_session', $token, [
+    setcookie('lms_session', $token, [
         'expires' => $expiresAt,
         'path' => '/',
         'secure' => cookie_is_secure(),
@@ -249,7 +249,7 @@ function set_session_cookie(string $token, int $expiresAt): void {
 }
 
 function clear_session_cookie(): void {
-    setcookie('otms_session', '', [
+    setcookie('lms_session', '', [
         'expires' => time() - 3600,
         'path' => '/',
         'secure' => cookie_is_secure(),
@@ -261,7 +261,7 @@ function clear_session_cookie(): void {
 function issue_session(int $userId, ?string $deviceName = null): array {
     $rawToken = new_token();
     $rawCsrf = new_token();
-    $days = otms_demo_mode() ? 1 : 30;
+    $days = lms_demo_mode() ? 1 : 30;
     $expiresAt = time() + $days * 86400;
     db()->prepare(
         'INSERT INTO sessions (token_hash, csrf_token_hash, user_id, device_name, expires_at, last_used_at)
@@ -349,7 +349,7 @@ function public_user(array $user): array {
 // ---- Rate limiting --------------------------------------------------------
 
 function client_ip(): string {
-    if (otms_env_bool('OTMS_TRUST_PROXY', false)) {
+    if (lms_env_bool('LMS_TRUST_PROXY', false)) {
         foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR'] as $key) {
             $candidate = trim(explode(',', (string)($_SERVER[$key] ?? ''))[0]);
             if (filter_var($candidate, FILTER_VALIDATE_IP)) return $candidate;
@@ -360,7 +360,7 @@ function client_ip(): string {
 }
 
 function privacy_hash(string $value): string {
-    return hash_hmac('sha256', strtolower(trim($value)), otms_app_key());
+    return hash_hmac('sha256', strtolower(trim($value)), lms_app_key());
 }
 
 function enforce_rate_limit(
@@ -590,7 +590,7 @@ function save_upload(string $field, int $ownerUserId): ?array {
         fail('The file content does not match its extension.', 415, 'FILE_TYPE_MISMATCH');
     }
 
-    $storageDir = otms_storage_path();
+    $storageDir = lms_storage_path();
     if (!is_dir($storageDir) && !mkdir($storageDir, 0700, true)) {
         fail('Private upload storage is unavailable.', 500, 'STORAGE_UNAVAILABLE');
     }
@@ -628,7 +628,7 @@ function file_download_path(?int $fileId, ?string $legacyPath = null, ?int $user
         if ($userId === null) return 'file_download.php?id=' . $fileId;
         $expires = time() + 300;
         $payload = $fileId . '|' . $userId . '|' . $expires;
-        $signature = hash_hmac('sha256', $payload, otms_app_key());
+        $signature = hash_hmac('sha256', $payload, lms_app_key());
         return 'file_download.php?id=' . $fileId . '&uid=' . $userId
             . '&exp=' . $expires . '&sig=' . $signature;
     }
@@ -643,7 +643,7 @@ function signed_download_user(int $fileId): ?array {
     $signature = (string)($_GET['sig'] ?? '');
     if (!$userId || !$expires || $expires < time() || $expires > time() + 600
         || !preg_match('/^[a-f0-9]{64}$/', $signature)) return null;
-    $expected = hash_hmac('sha256', $fileId . '|' . $userId . '|' . $expires, otms_app_key());
+    $expected = hash_hmac('sha256', $fileId . '|' . $userId . '|' . $expires, lms_app_key());
     if (!hash_equals($expected, $signature)) return null;
     $stmt = db()->prepare('SELECT * FROM users WHERE id = ?');
     $stmt->execute([$userId]);
@@ -656,11 +656,11 @@ function discard_saved_upload(?array $file): void {
         try {
             db()->prepare('DELETE FROM stored_files WHERE id = ?')->execute([(int)$file['id']]);
         } catch (Throwable $e) {
-            error_log('OTMS failed to remove uploaded-file row: ' . $e->getMessage());
+            error_log('LMS failed to remove uploaded-file row: ' . $e->getMessage());
         }
     }
     if (!empty($file['storage_name'])) {
-        @unlink(otms_storage_path() . DIRECTORY_SEPARATOR . basename((string)$file['storage_name']));
+        @unlink(lms_storage_path() . DIRECTORY_SEPARATOR . basename((string)$file['storage_name']));
     }
 }
 
@@ -677,7 +677,7 @@ function delete_stored_file_if_unreferenced(?int $fileId): void {
     $row = $stmt->fetch();
     if (!$row || (int)$row['refs'] > 0) return;
     db()->prepare('DELETE FROM stored_files WHERE id = ?')->execute([$fileId]);
-    @unlink(otms_storage_path() . DIRECTORY_SEPARATOR . $row['storage_name']);
+    @unlink(lms_storage_path() . DIRECTORY_SEPARATOR . $row['storage_name']);
 }
 
 // ---- Common operations ----------------------------------------------------
@@ -726,7 +726,7 @@ function audit_event(
     } catch (Throwable $e) {
         // Auditing must not turn a successful user operation into a 500, but
         // its failure remains visible to operators.
-        error_log('OTMS audit write failed: ' . $e->getMessage());
+        error_log('LMS audit write failed: ' . $e->getMessage());
     }
 }
 

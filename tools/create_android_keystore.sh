@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # One-time signing-key creation. Keep the resulting file and passwords backed up.
 set -euo pipefail
-OUT="${1:-$HOME/otms-release.jks}"
-ALIAS="${OTMS_KEY_ALIAS:-otms}"
+OUT="${1:-$HOME/lms-release.jks}"
+ALIAS="${LMS_KEY_ALIAS:-lms}"
 command -v keytool >/dev/null || { echo 'keytool is required (install JDK 17+).' >&2; exit 1; }
 [[ ! -e "$OUT" ]] || { echo "Refusing to overwrite $OUT" >&2; exit 1; }
 mkdir -p "$(dirname "$OUT")"
